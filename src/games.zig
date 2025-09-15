@@ -38,11 +38,11 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     try deck_utils.initialize_deck(allocator, &deck, 8);
 
     const connections = try allocator.alloc(?std.net.Server.Connection, 7);
-    var ids = try allocator.alloc(?u16, 7);
-    var chips = try allocator.alloc(?f64, 7);
-    var hand_value = try allocator.alloc(?u8, 7);
-    var bets = try allocator.alloc(?f64, 7);
-    var hands = try allocator.alloc(?std.ArrayList(deck_utils.cards), 7);
+    const ids = try allocator.alloc(?u16, 7);
+    const chips = try allocator.alloc(?f64, 7);
+    const hand_value = try allocator.alloc(?u8, 7);
+    const bets = try allocator.alloc(?f64, 7);
+    const hands = try allocator.alloc(?std.ArrayList(deck_utils.cards), 7);
 
     defer allocator.free(connections);
     defer allocator.free(ids);
@@ -54,8 +54,14 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     var gamestate = try allocator.create(protocol.gamestate);
     defer allocator.destroy(gamestate);
 
-    for (connections) |*connection| {
+    //initalize all values to null instead of undefined
+    for (connections, ids, chips, hand_value, bets, hands) |*connection, *id, *total_chips, *value, *bet, *hand| {
         connection.* = null;
+        id.* = null;
+        total_chips.* = null;
+        value.* = null;
+        bet.* = null;
+        hand.* = null;
     }
 
     gamestate.ids = ids;
@@ -66,9 +72,6 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
 
     address = try std.net.Address.parseIp4("0.0.0.0", 8192);
 
-    var connection_thread = try std.Thread.spawn(.{}, protocol.accept_connections, .{ &address, connections, gamestate });
-    defer connection_thread.join();
-
     ids[0] = 0;
     chips[0] = null;
 
@@ -78,6 +81,9 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     //dealer always has id 0
     hands[0] = try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0);
     hands[1] = try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0);
+
+    var connection_thread = try std.Thread.spawn(.{}, protocol.accept_connections, .{ &address, connections, gamestate });
+    defer connection_thread.join();
 
     //    var index: u8 = 0;
     var dealt_card: deck_utils.cards = undefined;
@@ -231,8 +237,8 @@ fn process_blackjack_input(
 ) !void {
     var dealt_card: deck_utils.cards = undefined;
     var buffer: [4096]u8 = undefined;
-    while (stdin.takeDelimiterExclusive('\r')) |raw| {
-        _ = try stdin.discardShort(1);
+    while (stdin.takeDelimiterExclusive('\n')) |raw| {
+        //        _ = try stdin.discardShort(1);
         //        std.debug.print("INPUT: {s}, INPUT LENGTH: {d}, BYTES DISCARDED: {d}", .{ input, input.len, bytes_discarded });
         const input = std.ascii.lowerString(&buffer, raw);
         if (std.mem.eql(u8, input, "hit")) {
@@ -369,8 +375,8 @@ pub fn process_bets_blackjack(
 ) !void {
     try stdout.print("Whats your bet!?\n", .{});
     try stdout.flush();
-    while (stdin.takeDelimiterExclusive('\r')) |raw| {
-        _ = try stdin.discardShort(1);
+    while (stdin.takeDelimiterExclusive('\n')) |raw| {
+        //        _ = try stdin.discardShort(1);
         const input = std.fmt.parseFloat(f64, raw) catch |err| {
             switch (err) {
                 std.fmt.ParseFloatError.InvalidCharacter => {
