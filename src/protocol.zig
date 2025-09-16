@@ -6,7 +6,7 @@ pub fn acceptConnections(address: *std.net.Address, connections: []?std.net.Serv
     defer server.deinit();
 
     //    _ = state;
-    std.debug.print("THREAD 2 GAMESTATE: ID{d}", .{state.ids[1].?});
+    std.debug.print("THREAD 2 GAMESTATE ID:{d}\n", .{state.ids[1].?});
     while (true) {
         for (connections) |*connection| {
             if (connection.* != null) continue;
@@ -20,11 +20,24 @@ pub fn sendGameState(connections: []?std.net.Server.Connection) !void {
     var stream_writer: *std.Io.Writer = undefined;
     var out_buffer: [4096]u8 = undefined;
 
+    //figure out if we can switch on that capture error value
     while (true) {
         for (connections) |*connection| {
             if (connection.* == null) continue;
-            stream_writer = @constCast(&connection.*.?.stream.writer(&out_buffer).interface);
-            try stream_writer.print("THIS IS A PRINTING TEST", .{});
+            var stream = connection.*.?.stream;
+            if (stream.writer(&out_buffer).err) |err| {
+                switch (err) {
+                    std.net.Stream.WriteError.BrokenPipe => {
+                        std.debug.print("Connection lost: Broken Pipe\n", .{});
+                        connection.* = null;
+                    },
+                    else => {
+                        std.debug.print("Unhandled Stream Error!\n", .{});
+                    },
+                }
+            }
+            stream_writer = @constCast(&stream.writer(&out_buffer).interface);
+            try stream_writer.print("THIS IS A PRINTING TEST\n", .{});
             try stream_writer.flush();
         }
         std.Thread.sleep(std.time.ns_per_s * 5);
