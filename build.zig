@@ -41,6 +41,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
     });
 
+    const client = b.addModule("client", .{ .target = target, .root_source_file = b.path("src/root.zig") });
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
     // to the module defined above, it's sometimes preferable to split business
@@ -57,6 +58,9 @@ pub fn build(b: *std.Build) void {
     //
     // If neither case applies to you, feel free to delete the declaration you
     // don't need and to put everything under a single module.
+    const client_exe = b.addExecutable(.{ .name = "client", .root_module = b.createModule(.{ .root_source_file = b.path("src/client/client.zig"), .target = target, .optimize = optimize, .imports = &.{
+        .{ .name = "client", .module = client },
+    } }) });
     const exe = b.addExecutable(.{
         .name = "casino",
         .root_module = b.createModule(.{
@@ -88,6 +92,7 @@ pub fn build(b: *std.Build) void {
     // step). By default the install prefix is `zig-out/` but can be overridden
     // by passing `--prefix` or `-p`.
     b.installArtifact(exe);
+    b.installArtifact(client_exe);
 
     // This creates a top level step. Top level steps have a name and can be
     // invoked by name when running `zig build` (e.g. `zig build run`).

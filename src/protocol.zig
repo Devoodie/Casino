@@ -23,7 +23,7 @@ pub fn sendGameState(connections: []?std.net.Server.Connection) !void {
     while (true) {
         for (connections) |*connection| {
             if (connection.* == null) continue;
-            stream_writer = &connection.*.?.stream.writer(&out_buffer).interface;
+            stream_writer = @constCast(&connection.*.?.stream.writer(&out_buffer).interface);
             try stream_writer.print("THIS IS A PRINTING TEST", .{});
             try stream_writer.flush();
         }
