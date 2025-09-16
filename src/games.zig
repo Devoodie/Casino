@@ -51,7 +51,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     defer allocator.free(bets);
     defer allocator.free(hands);
 
-    var gamestate = try allocator.create(protocol.gamestate);
+    var gamestate = try allocator.create(protocol.Gamestate);
     defer allocator.destroy(gamestate);
 
     //initalize all values to null instead of undefined
@@ -82,8 +82,11 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     hands[0] = try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0);
     hands[1] = try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0);
 
-    var connection_thread = try std.Thread.spawn(.{}, protocol.accept_connections, .{ &address, connections, gamestate });
+    var connection_thread = try std.Thread.spawn(.{}, protocol.acceptConnections, .{ &address, connections, gamestate });
+    var handling_thread = try std.Thread.spawn(.{}, protocol.sendGameState, .{connections});
+
     defer connection_thread.join();
+    defer handling_thread.join();
 
     //    var index: u8 = 0;
     var dealt_card: deck_utils.cards = undefined;
