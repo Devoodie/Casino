@@ -13,6 +13,8 @@ pub fn main() !void {
     var stream_in = &stream_reader.file_reader.interface;
     //   var stream_out = &stream_writer.interface;
 
-    const input = try stream_in.takeDelimiterExclusive('\n');
-    std.debug.print("READ INPUT: {s}\n", .{input});
+    while (true) {
+        const input = try stream_in.takeDelimiterExclusive('\n');
+        std.debug.print("READ INPUT: {s}\n", .{input});
+    }
 }

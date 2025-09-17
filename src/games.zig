@@ -83,10 +83,10 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     hands[1] = try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0);
 
     var connection_thread = try std.Thread.spawn(.{}, protocol.acceptConnections, .{ &address, connections, gamestate });
-    var handling_thread = try std.Thread.spawn(.{}, protocol.sendGameState, .{connections});
+    //var handling_thread = try std.Thread.spawn(.{}, protocol.sendGameState, .{ connections, gamestate.* });
 
     defer connection_thread.join();
-    defer handling_thread.join();
+    //defer handling_thread.join();
 
     //    var index: u8 = 0;
     var dealt_card: deck_utils.cards = undefined;
@@ -99,6 +99,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                 try deck.append(allocator, card);
             }
         }
+
         try stdout.print("\n\nNew Hand!\n", .{});
 
         try stdout.print("\n\nBETS BETS BETS!\n", .{});
@@ -135,6 +136,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
             }
             hand_value[seat] = total;
         }
+        try protocol.sendGameState(connections, gamestate.*);
 
         try show_all_cards_blackjack(hands, 0);
         try stdout.flush();
@@ -203,6 +205,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                     std.debug.print("Unknown error has occured!\n", .{});
                 },
             }
+            try protocol.sendGameState(connections, gamestate.*);
         }
         try stdout.print("\n\n", .{});
         for (chips, hand_value, 0..) |*pot, value, i| {
