@@ -193,12 +193,12 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                         const earnings = bets[seat].? * 2.5;
                         try stdout.print("EARNINGS: {d:.2}\n", .{earnings});
                         chips[seat].? += earnings;
-                        try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}", .{ seat, chips[seat].? });
+                        try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}\n", .{ seat, chips[seat].? });
                         hand_value[seat] = null;
                         continue;
                     }
                     try stdout.print("\n", .{});
-                    try process_blackjack_input(allocator, &deck, &spent_deck, hands, @truncate(i), &hand_value[i]);
+                    try process_blackjack_input(allocator, &deck, &spent_deck, hands, @truncate(i), &hand_value[i], &chips[i], &bets[i]);
                     try stdout.print("\n", .{});
                 },
                 else => {
@@ -240,15 +240,19 @@ fn process_blackjack_input(
     hands: []?std.ArrayList(deck_utils.cards),
     seat: u8,
     hand_value: *?u8,
+    chips: *?f64,
+    bet: *?f64,
 ) !void {
     var dealt_card: deck_utils.cards = undefined;
     var buffer: [4096]u8 = undefined;
+    var first_iteration = true;
+
     while (stdin.takeDelimiterExclusive('\n')) |raw| {
         //        _ = try stdin.discardShort(1);
-        //        std.debug.print("INPUT: {s}, INPUT LENGTH: {d}, BYTES DISCARDED: {d}", .{ input, input.len, bytes_discarded });
+        try stdout.flush();
         const input = std.ascii.lowerString(&buffer, raw);
         if (std.mem.eql(u8, input, "hit")) {
-            //im seeing stars
+            first_iteration = false;
             dealt_card = deck.pop().?;
             const player_deck = &hands[seat].?;
             try player_deck.*.append(allocator, dealt_card);
@@ -301,13 +305,47 @@ fn process_blackjack_input(
             hand_value.* = total;
             try stdout.print("\nTOTAL: {d}\n", .{total});
             break;
+        } else if (std.mem.eql(u8, input, "show cards") or std.mem.eql(u8, input, "show")) {
+            try show_all_cards_blackjack(hands, 1);
+        } else if (std.mem.eql(u8, input, "double")) {
+            if (first_iteration != true) {
+                try stdout.print("CAN'T DOUBLE AFTER HIT!\n", .{});
+                continue;
+            }
+
+            chips.*.? -= bet.*.?;
+            bet.*.? *= 2;
+
+            var value: u8 = 0;
+            var ace_count: u8 = 0;
+            var total: u8 = 0;
+
+            dealt_card = deck.pop().?;
+            const player_deck = &hands[seat].?;
+            try player_deck.*.append(allocator, dealt_card);
+            try spent_deck.*.append(allocator, dealt_card);
+
+            try stdout.print("DOUBLING!!\nNEWCARD: {any}\n", .{dealt_card});
+
+            for (hands[seat].?.items) |card| {
+                value = blackjack_card_value(card);
+                if (value == 11) {
+                    ace_count += 1;
+                }
+                total += value;
+            }
+
+            while (total > 21 and ace_count > 0) {
+                total -= 10;
+            }
+            try stdout.print("TOTAL: {d}\n", .{total});
+            hand_value.* = total;
+            break;
         } else if (std.mem.eql(u8, input, "exit")) {
             try stdout.print("EXITING!\n", .{});
             std.posix.exit(0);
-        } else if (std.mem.eql(u8, input, "SHOW CARDS")) {
-            try show_all_cards_blackjack(hands, 1);
+            try stdout.flush();
         }
-        try stdout.flush();
     } else |err| {
         return err;
     }
@@ -381,6 +419,7 @@ pub fn process_bets_blackjack(
 ) !void {
     try stdout.print("Whats your bet!?\n", .{});
     try stdout.flush();
+
     while (stdin.takeDelimiterExclusive('\n')) |raw| {
         //        _ = try stdin.discardShort(1);
         const input = std.fmt.parseFloat(f64, raw) catch |err| {
