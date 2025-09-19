@@ -1,9 +1,6 @@
 const std = @import("std");
 
-pub const players = struct {
-    ids: []?u16 = undefined,
-    pots: []?u32 = undefined,
-};
+//nobody be using this shit
 
 pub const cards = enum(u8) {
     SPADE_TWO = 0,

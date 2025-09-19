@@ -37,12 +37,18 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
 
     try deck_utils.initialize_deck(allocator, &deck, 8);
 
+    //struct of arrays miht be fucking me here
     const connections = try allocator.alloc(?std.net.Server.Connection, 7);
     const ids = try allocator.alloc(?u16, 7);
-    const chips = try allocator.alloc(?f64, 7);
+    const chips = try allocator.alloc(?f32, 7);
     const hand_value = try allocator.alloc(?u8, 7);
-    const bets = try allocator.alloc(?f64, 7);
-    const hands = try allocator.alloc(?std.ArrayList(deck_utils.cards), 7);
+    const bets = try allocator.alloc(?f32, 7);
+    const hands = try allocator.alloc(?std.ArrayList(?std.ArrayList(deck_utils.cards)), 7);
+
+    //struct neeeded
+    //first array is a slice of arraylists with a length of 7
+    //2nd array is an arraylist which containts a hand arraylist!!!!
+    //3rd array is an arraylist of which can be null
 
     defer allocator.free(connections);
     defer allocator.free(ids);
@@ -79,8 +85,12 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     chips[1] = 1000;
 
     //dealer always has id 0
-    hands[0] = try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0);
-    hands[1] = try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0);
+    //fucking 3-dimensional array my guy
+    hands[0] = try std.ArrayList(?std.ArrayList(deck_utils.cards)).initCapacity(allocator, 0);
+    hands[1] = try std.ArrayList(?std.ArrayList(deck_utils.cards)).initCapacity(allocator, 1);
+
+    try hands[0].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0));
+    try hands[1].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 10));
 
     var connection_thread = try std.Thread.spawn(.{}, protocol.acceptConnections, .{ &address, connections, gamestate });
     //var handling_thread = try std.Thread.spawn(.{}, protocol.sendGameState, .{ connections, gamestate.* });
@@ -88,8 +98,8 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     defer connection_thread.join();
     //defer handling_thread.join();
 
-    //    var index: u8 = 0;
     var dealt_card: deck_utils.cards = undefined;
+    const dealer_hand = &hands[0].?.items[0].?;
     while (true) {
         //one iteration represents a round
 
@@ -115,7 +125,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
             if (ids[i % 7] == null) continue;
             dealt_card = deck.pop().?;
             try spent_deck.append(allocator, dealt_card);
-            try hands[i % 7].?.append(allocator, dealt_card);
+            try hands[i % 7].?.items[0].?.append(allocator, dealt_card);
         }
 
         defer free_cards: {
@@ -126,15 +136,18 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
             break :free_cards;
         }
         //check for blackjack
-        for (hands, 0..) |*cards, seat| {
-            if (cards.* == null) continue;
-            var value: u8 = 0;
-            var total: u8 = 0;
-            for (cards.*.?.items) |card| {
-                value = blackjack_card_value(card);
-                total += value;
+        for (hands) |hand| {
+            if (hand == null) continue;
+            for (hand.?.items, 0..) |*cards, seat| {
+                if (cards.* == null) continue;
+                var value: u8 = 0;
+                var total: u8 = 0;
+                for (cards.*.?.items) |card| {
+                    value = blackjack_card_value(card);
+                    total += value;
+                }
+                hand_value[seat] = total;
             }
-            hand_value[seat] = total;
         }
         try protocol.sendGameState(connections, gamestate.*);
 
@@ -158,7 +171,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                     var ace_count: u8 = 0;
 
                     try stdout.print("DEALER CARDS: ", .{});
-                    for (hands[0].?.items) |card| {
+                    for (dealer_hand.items) |card| {
                         value = blackjack_card_value(card);
                         try stdout.print("{any} ", .{card});
                         if (value == 11) {
@@ -171,7 +184,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                     while (total < 17) {
                         dealt_card = deck.pop().?;
                         try spent_deck.append(allocator, dealt_card);
-                        try hands[0].?.append(allocator, dealt_card);
+                        try dealer_hand.append(allocator, dealt_card);
                         value = blackjack_card_value(dealt_card);
                         if (value == 11) {
                             ace_count += 1;
@@ -208,13 +221,15 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
             try protocol.sendGameState(connections, gamestate.*);
         }
         try stdout.print("\n\n", .{});
+
+        const dealer_value = hand_value[0].?;
         for (chips, hand_value, 0..) |*pot, value, i| {
             if (value == null or i == 0) continue;
-            if ((value.? < hand_value[0].? and hand_value[0].? < 22) or value.? > 21) {
+            if ((value.? < dealer_value and dealer_value < 22) or value.? > 21) {
                 try stdout.print("SEAT: {d} LOSES!\n", .{i});
                 try stdout.print("SEAT {d} BET: {d:.2}\n", .{ i, bets[i].? });
                 try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}", .{ i, pot.*.? });
-            } else if (value.? > hand_value[0].? or hand_value[0].? > 21) {
+            } else if (value.? > dealer_value or dealer_value > 21) {
                 try stdout.print("SEAT: {d} WINS!\n", .{i});
                 try stdout.print("SEAT {d} BET: {d:.2}\n", .{ i, bets[i].? });
 
@@ -237,11 +252,11 @@ fn process_blackjack_input(
     allocator: std.mem.Allocator,
     deck: *std.ArrayList(deck_utils.cards),
     spent_deck: *std.ArrayList(deck_utils.cards),
-    hands: []?std.ArrayList(deck_utils.cards),
+    hands: []?std.ArrayList(?std.ArrayList(deck_utils.cards)),
     seat: u8,
     hand_value: *?u8,
-    chips: *?f64,
-    bet: *?f64,
+    chips: *?f32,
+    bet: *?f32,
 ) !void {
     var dealt_card: deck_utils.cards = undefined;
     var buffer: [4096]u8 = undefined;
@@ -254,15 +269,17 @@ fn process_blackjack_input(
         if (std.mem.eql(u8, input, "hit")) {
             first_iteration = false;
             dealt_card = deck.pop().?;
-            const player_deck = &hands[seat].?;
+            const player_deck = &hands[seat].?.items[0].?;
+
             try player_deck.*.append(allocator, dealt_card);
             try spent_deck.*.append(allocator, dealt_card);
+
             try stdout.print("HITTING\nNEWCARD: {any}\n", .{dealt_card});
             var total: u8 = 0;
             var value: u8 = 0;
             var ace_count: u8 = 0;
 
-            for (hands[seat].?.items) |card| {
+            for (player_deck.items) |card| {
                 value = blackjack_card_value(card);
                 if (value == 11) {
                     ace_count += 1;
@@ -297,7 +314,8 @@ fn process_blackjack_input(
             var total: u8 = 0;
             var value: u8 = 0;
             try stdout.print("STANDING! CARDS: ", .{});
-            for (hands[seat].?.items) |card| {
+            const player_deck = &hands[seat].?.items[0].?;
+            for (player_deck.items) |card| {
                 try stdout.print("{any} ", .{card});
                 value = blackjack_card_value(card);
                 if (value == 11 and total + value > 21) total += 1 else total += value;
@@ -321,13 +339,13 @@ fn process_blackjack_input(
             var total: u8 = 0;
 
             dealt_card = deck.pop().?;
-            const player_deck = &hands[seat].?;
+            const player_deck = &hands[seat].?.items[0].?;
             try player_deck.*.append(allocator, dealt_card);
             try spent_deck.*.append(allocator, dealt_card);
 
             try stdout.print("DOUBLING!!\nNEWCARD: {any}\n", .{dealt_card});
 
-            for (hands[seat].?.items) |card| {
+            for (player_deck.items) |card| {
                 value = blackjack_card_value(card);
                 if (value == 11) {
                     ace_count += 1;
@@ -341,6 +359,11 @@ fn process_blackjack_input(
             try stdout.print("TOTAL: {d}\n", .{total});
             hand_value.* = total;
             break;
+        } else if (std.mem.eql(u8, input, "split")) {
+            //split finna go crazy. (recursion maybe?)
+            //recursion won't work for bet calculation
+            //because we need to calculate it against the dealer at the end
+            //multi dimensional array list is cancer but the only solution
         } else if (std.mem.eql(u8, input, "exit")) {
             try stdout.print("EXITING!\n", .{});
             std.posix.exit(0);
@@ -352,24 +375,33 @@ fn process_blackjack_input(
     try stdout.flush();
 }
 
-pub fn show_all_cards_blackjack(hands: []?std.ArrayList(deck_utils.cards), player: u8) !void {
-    for (hands, 0..) |hand, seat| {
-        if (hand == null) continue;
+//pub fn split(hand: *std.ArrayList(deck_utils.cards), bet: *f32, chips: *f64) !void {
+//}
+
+pub fn show_all_cards_blackjack(hands: []?std.ArrayList(?std.ArrayList(deck_utils.cards)), player: u8) !void {
+    for (hands, 0..) |player_hands, seat| {
+        if (player_hands == null) continue;
         if (seat == 0) {
-            try stdout.print("DEALER, HAND: ", .{});
+            try stdout.print("DEALER, ", .{});
         } else if (player == seat) {
-            try stdout.print("*YOU* SEAT: {d}, HAND: ", .{seat});
+            try stdout.print("*YOU* SEAT: {d}, ", .{seat});
         } else {
-            try stdout.print("SEAT: {d}, HAND: ", .{seat});
+            try stdout.print("SEAT: {d}, ", .{seat});
         }
-        for (hand.?.items, 0..) |card, i| {
-            if (i == 0 and seat == 0) {
-                try stdout.print(".HIDDEN ", .{});
-                continue;
+
+        for (player_hands.?.items, 1..) |hand, hand_num| {
+            try stdout.print("HAND {d}: ", .{hand_num});
+
+            for (hand.?.items, 0..) |card, i| {
+                if (i == 0 and seat == 0) {
+                    try stdout.print(".HIDDEN ", .{});
+                    continue;
+                }
+                try stdout.print("{any} ", .{card});
             }
-            try stdout.print("{any} ", .{card});
+
+            try stdout.print("|\n", .{});
         }
-        try stdout.print("|\n", .{});
     }
     //flush
 }
@@ -414,15 +446,18 @@ pub fn blackjack_card_value(card: deck_utils.cards) u8 {
 }
 
 pub fn process_bets_blackjack(
-    bet: *?f64,
-    chips: *?f64,
+    bet: *?f32,
+    chips: *?f32,
 ) !void {
     try stdout.print("Whats your bet!?\n", .{});
     try stdout.flush();
 
+    var buffer: [4096]u8 = undefined;
     while (stdin.takeDelimiterExclusive('\n')) |raw| {
         //        _ = try stdin.discardShort(1);
-        const input = std.fmt.parseFloat(f64, raw) catch |err| {
+        const input = std.ascii.lowerString(&buffer, raw);
+        if (std.mem.eql(u8, input, "exit")) std.posix.exit(0);
+        const float_input = std.fmt.parseFloat(f32, input) catch |err| {
             switch (err) {
                 std.fmt.ParseFloatError.InvalidCharacter => {
                     try stdout.print("ERR: INVALID INTEGER!\n", .{});
@@ -431,10 +466,10 @@ pub fn process_bets_blackjack(
                 },
             }
         };
-        if (input <= chips.*.?) {
-            bet.* = input;
-            chips.*.? -= input;
-            try stdout.print("CURRENT BET: {d:.2}\n", .{input});
+        if (float_input <= chips.*.?) {
+            bet.* = float_input;
+            chips.*.? -= float_input;
+            try stdout.print("CURRENT BET: {d:.2}\n", .{float_input});
             try stdout.print("REMAINING CHIPS: {d:.2}\n", .{chips.*.?});
             try stdout.flush();
             break;
