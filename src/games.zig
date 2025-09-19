@@ -87,10 +87,12 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     //dealer always has id 0
     //fucking 3-dimensional array my guy
     hands[0] = try std.ArrayList(?std.ArrayList(deck_utils.cards)).initCapacity(allocator, 0);
-    hands[1] = try std.ArrayList(?std.ArrayList(deck_utils.cards)).initCapacity(allocator, 1);
+    hands[1] = try std.ArrayList(?std.ArrayList(deck_utils.cards)).initCapacity(allocator, 0);
 
     try hands[0].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0));
-    try hands[1].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 10));
+    try hands[1].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0));
+
+    try stdout.flush();
 
     var connection_thread = try std.Thread.spawn(.{}, protocol.acceptConnections, .{ &address, connections, gamestate });
     //var handling_thread = try std.Thread.spawn(.{}, protocol.sendGameState, .{ connections, gamestate.* });
@@ -131,14 +133,16 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
         defer free_cards: {
             for (hands) |*hand| {
                 if (hand.* == null) continue;
-                hand.*.?.clearAndFree(allocator);
+                //EDIT HERE FOR SPLITTING
+                hand.*.?.items[0].?.clearAndFree(allocator);
             }
             break :free_cards;
         }
+
         //check for blackjack
-        for (hands) |hand| {
+        for (hands, 0..) |hand, seat| {
             if (hand == null) continue;
-            for (hand.?.items, 0..) |*cards, seat| {
+            for (hand.?.items) |*cards| {
                 if (cards.* == null) continue;
                 var value: u8 = 0;
                 var total: u8 = 0;
@@ -149,6 +153,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                 hand_value[seat] = total;
             }
         }
+
         try protocol.sendGameState(connections, gamestate.*);
 
         try show_all_cards_blackjack(hands, 0);
@@ -159,13 +164,17 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
         for (1..8) |i| {
             const seat = i % 7;
             const id = ids[seat];
+            if (hand_value[0] == 21) {
+                try stdout.print("DEALER BLACKJACK!\nCARDS: ", .{});
+                for (dealer_hand.items) |card| {
+                    try stdout.print("{any} ", .{card});
+                }
+                try stdout.print("|\n", .{});
+                break;
+            }
             if (id == null) continue;
             switch (id.?) {
                 0 => dealer: {
-                    if (hand_value[0] == 21) {
-                        try stdout.print("DEALER BLACKJACK!", .{});
-                        break;
-                    }
                     var value: u8 = 0;
                     var total: u8 = 0;
                     var ace_count: u8 = 0;
