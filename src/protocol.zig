@@ -53,7 +53,7 @@ pub fn sendGameState(connections: []?std.net.Server.Connection, state: Gamestate
 pub const Gamestate = struct {
     ids: []?u16,
     chips: []?f32,
-    hand_value: []?u8,
+    hand_value: []?std.ArrayList(?u8),
     bets: []?f32,
     hands: []?std.ArrayList(?std.ArrayList(deck_utils.cards)),
 };
