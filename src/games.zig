@@ -38,6 +38,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     try deck_utils.initialize_deck(allocator, &deck, 8);
 
     //struct of arrays miht be fucking me here
+    //*apparently this is array of struct of arrays*
     const connections = try allocator.alloc(?std.net.Server.Connection, 7);
     const ids = try allocator.alloc(?u16, 7);
     const chips = try allocator.alloc(?f32, 7);
@@ -88,6 +89,9 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     //fucking 3-dimensional array my guy
     hands[0] = try std.ArrayList(?std.ArrayList(deck_utils.cards)).initCapacity(allocator, 0);
     hands[1] = try std.ArrayList(?std.ArrayList(deck_utils.cards)).initCapacity(allocator, 0);
+
+    hand_value[0] = try std.ArrayList(?u8).initCapacity(allocator, 2);
+    hand_value[1] = try std.ArrayList(?u8).initCapacity(allocator, 2);
 
     try hands[0].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0));
     try hands[1].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0));
@@ -150,7 +154,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                     value = blackjack_card_value(card);
                     total += value;
                 }
-                hand_value[seat] = total;
+                try hand_value[seat].?.append(allocator, total);
             }
         }
 
@@ -164,7 +168,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
         for (1..8) |i| {
             const seat = i % 7;
             const id = ids[seat];
-            if (hand_value[0] == 21) {
+            if (hand_value[seat].?.items[0] == 21) {
                 try stdout.print("DEALER BLACKJACK!\nCARDS: ", .{});
                 for (dealer_hand.items) |card| {
                     try stdout.print("{any} ", .{card});
@@ -206,11 +210,11 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                         }
                     }
                     try stdout.print("DEALER TOTAL: {d}\n", .{total});
-                    hand_value[0] = total;
+                    hand_value[0].?.items[0] = total;
                     break :dealer;
                 },
                 1 => {
-                    if (hand_value[seat] == 21) {
+                    if (hand_value[seat].?.items[0] == 21) {
                         try stdout.print("SEAT {d} BLACKJACK!!!\n", .{seat});
                         const earnings = bets[seat].? * 2.5;
                         try stdout.print("EARNINGS: {d:.2}\n", .{earnings});
@@ -220,7 +224,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                         continue;
                     }
                     try stdout.print("\n", .{});
-                    try process_blackjack_input(allocator, &deck, &spent_deck, hands, @truncate(i), &hand_value[i], &chips[i], &bets[i]);
+                    try process_blackjack_input(allocator, &deck, &spent_deck, hands, @truncate(i), &hand_value[i].?, &chips[i], &bets[i]);
                     try stdout.print("\n", .{});
                 },
                 else => {
@@ -231,26 +235,30 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
         }
         try stdout.print("\n\n", .{});
 
-        const dealer_value = hand_value[0].?;
-        for (chips, hand_value, 0..) |*pot, value, i| {
-            if (value == null or i == 0) continue;
-            if ((value.? < dealer_value and dealer_value < 22) or value.? > 21) {
-                try stdout.print("SEAT: {d} LOSES!\n", .{i});
-                try stdout.print("SEAT {d} BET: {d:.2}\n", .{ i, bets[i].? });
-                try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}", .{ i, pot.*.? });
-            } else if (value.? > dealer_value or dealer_value > 21) {
-                try stdout.print("SEAT: {d} WINS!\n", .{i});
-                try stdout.print("SEAT {d} BET: {d:.2}\n", .{ i, bets[i].? });
+        //processes the winnings
+        const dealer_value = hand_value[0].?.items[0].?;
+        for (hand_value, 0..) |hand_values, i| {
+            if (hand_values == null or i == 0) continue;
+            for (chips, hand_values.?.items) |*pot, value| {
+                if (value == null or i == 0) continue;
+                if ((value.? < dealer_value and dealer_value < 22) or value.? > 21) {
+                    try stdout.print("SEAT: {d} LOSES!\n", .{i});
+                    try stdout.print("SEAT {d} BET: {d:.2}\n", .{ i, bets[i].? });
+                    try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}", .{ i, pot.*.? });
+                } else if (value.? > dealer_value or dealer_value > 21) {
+                    try stdout.print("SEAT: {d} WINS!\n", .{i});
+                    try stdout.print("SEAT {d} BET: {d:.2}\n", .{ i, bets[i].? });
 
-                const earnings = bets[i].? * 2;
-                try stdout.print("EARNINGS: {d:.2}\n", .{bets[i].?});
-                pot.*.? += earnings;
+                    const earnings = bets[i].? * 2;
+                    try stdout.print("EARNINGS: {d:.2}\n", .{bets[i].?});
+                    pot.*.? += earnings;
 
-                try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}\n", .{ i, pot.*.? });
-            } else {
-                try stdout.print("SEAT: {d} PUSHES!\n", .{i});
-                pot.*.? += bets[i].?;
-                try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}\n", .{ i, pot.*.? });
+                    try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}\n", .{ i, pot.*.? });
+                } else {
+                    try stdout.print("SEAT: {d} PUSHES!\n", .{i});
+                    pot.*.? += bets[i].?;
+                    try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}\n", .{ i, pot.*.? });
+                }
             }
         }
         try stdout.flush();
@@ -270,7 +278,7 @@ fn process_blackjack_input(
     var dealt_card: deck_utils.cards = undefined;
     var buffer: [4096]u8 = undefined;
     var first_iteration = true;
-    var hand_iterator = 0;
+    var hand_iterator: u8 = 0;
 
     while (stdin.takeDelimiterExclusive('\n')) |raw| {
         //        _ = try stdin.discardShort(1);

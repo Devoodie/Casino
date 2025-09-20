@@ -32,7 +32,7 @@ pub fn sendGameState(connections: []?std.net.Server.Connection, state: Gamestate
                 try stream_writer.print("null,null,null,null,null\n", .{});
                 continue;
             }
-            try stream_writer.print("{d},{d},{d},{d},{any}\n", .{ id.?, chips.?, value.?, bets.?, hand.? });
+            try stream_writer.print("{any},{any},{any},{any},{any}\n", .{ id.?, chips.?, value.?, bets.?, hand.? });
         }
 
         stream_writer.flush() catch {
