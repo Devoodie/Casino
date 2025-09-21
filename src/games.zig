@@ -420,6 +420,37 @@ fn process_blackjack_input(
                 try stdout.print("CAN'T SPLIT TWO DIFFERENT CARD VALUES!\n{any} {any}\n", .{ player_deck.items[0], player_deck.items[1] });
                 continue;
             }
+
+            try stdout.print("SPLITTING:\n", .{});
+
+            try hands[seat].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 2));
+            const new_hand = &hands[seat].?.items[hand_iterator + 1].?;
+
+            new_hand.appendAssumeCapacity(player_deck.pop().?);
+
+            //deal more cards
+
+            dealt_card = deck.pop().?;
+
+            try player_deck.append(allocator, dealt_card);
+            try spent_deck.append(allocator, dealt_card);
+
+            dealt_card = deck.pop().?;
+
+            try new_hand.append(allocator, dealt_card);
+            try spent_deck.append(allocator, dealt_card);
+
+            try stdout.print("NEW CARDS:\n", .{});
+
+            for (hands[seat].?.items, 1..) |hand, i| {
+                try stdout.print("HAND {d}: ", .{i});
+                for (hand.?.items) |card| {
+                    try stdout.print("{any} ", .{card});
+                }
+                try stdout.print("|\n", .{});
+            }
+            first_iteration = true;
+            hand_iterator += 1;
         } else if (std.mem.eql(u8, input, "exit")) {
             try stdout.print("EXITING!\n", .{});
             std.posix.exit(0);
