@@ -424,9 +424,10 @@ fn process_blackjack_input(
             try stdout.print("SPLITTING:\n", .{});
 
             try hands[seat].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 2));
+
             const new_hand = &hands[seat].?.items[hand_iterator + 1].?;
 
-            new_hand.appendAssumeCapacity(player_deck.pop().?);
+            try new_hand.append(allocator, player_deck.pop().?);
 
             //deal more cards
 
