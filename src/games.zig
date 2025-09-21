@@ -90,8 +90,8 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     hands[0] = try std.ArrayList(?std.ArrayList(deck_utils.cards)).initCapacity(allocator, 0);
     hands[1] = try std.ArrayList(?std.ArrayList(deck_utils.cards)).initCapacity(allocator, 0);
 
-    hand_value[0] = try std.ArrayList(?u8).initCapacity(allocator, 2);
-    hand_value[1] = try std.ArrayList(?u8).initCapacity(allocator, 2);
+    hand_value[0] = try std.ArrayList(?u8).initCapacity(allocator, 1);
+    hand_value[1] = try std.ArrayList(?u8).initCapacity(allocator, 1);
 
     try hands[0].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0));
     try hands[1].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0));
@@ -105,8 +105,8 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     //defer handling_thread.join();
 
     var dealt_card: deck_utils.cards = undefined;
-    const dealer_hand = &hands[0].?.items[0].?;
     while (true) {
+        const dealer_hand = &hands[0].?.items[0].?;
         //one iteration represents a round
 
         if (deck.items.len <= 52) {
@@ -134,11 +134,14 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
             try hands[i % 7].?.items[0].?.append(allocator, dealt_card);
         }
 
+        //need to remember to shrink and free hand values
         defer free_cards: {
-            for (hands) |*hand| {
-                if (hand.* == null) continue;
-                //EDIT HERE FOR SPLITTING
-                hand.*.?.items[0].?.clearAndFree(allocator);
+            //EDIT HERE FOR SPLITTING
+            for (hands, hand_value) |*player_hands, *value| {
+                if (player_hands.* == null) continue;
+                player_hands.*.?.shrinkAndFree(allocator, 1);
+                value.*.?.clearAndFree(allocator);
+                player_hands.*.?.items[0].?.clearAndFree(allocator);
             }
             break :free_cards;
         }
@@ -168,7 +171,8 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
         for (1..8) |i| {
             const seat = i % 7;
             const id = ids[seat];
-            if (hand_value[seat].?.items[0] == 21) {
+
+            if (hand_value[0].?.items[0] == 21) {
                 try stdout.print("DEALER BLACKJACK!\nCARDS: ", .{});
                 for (dealer_hand.items) |card| {
                     try stdout.print("{any} ", .{card});
@@ -177,6 +181,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                 break;
             }
             if (id == null) continue;
+
             switch (id.?) {
                 0 => dealer: {
                     var value: u8 = 0;
@@ -193,7 +198,6 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                         total += value;
                     }
                     try stdout.print("\n", .{});
-
                     while (total < 17) {
                         dealt_card = deck.pop().?;
                         try spent_deck.append(allocator, dealt_card);
@@ -237,9 +241,9 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
 
         //processes the winnings
         const dealer_value = hand_value[0].?.items[0].?;
-        for (hand_value, 0..) |hand_values, i| {
+        for (hand_value, chips, 0..) |hand_values, *pot, i| {
             if (hand_values == null or i == 0) continue;
-            for (chips, hand_values.?.items) |*pot, value| {
+            for (hand_values.?.items) |value| {
                 if (value == null or i == 0) continue;
                 if ((value.? < dealer_value and dealer_value < 22) or value.? > 21) {
                     try stdout.print("SEAT: {d} LOSES!\n", .{i});
@@ -319,7 +323,7 @@ fn process_blackjack_input(
                 try stdout.print("TOTAL: {d}\n", .{total});
                 try stdout.print("BUSTED!\n", .{});
 
-                if (hand_iterator == hands[seat].?.items.len) {
+                if (hand_iterator == hands[seat].?.items.len - 1) {
                     break;
                 } else {
                     hand_iterator += 1;
@@ -333,7 +337,7 @@ fn process_blackjack_input(
                 hand_value.*.items[hand_iterator] = total;
                 try stdout.print("TOTAL: {d}\n", .{total});
 
-                if (hand_iterator == hands[seat].?.items.len) {
+                if (hand_iterator == hands[seat].?.items.len - 1) {
                     break;
                 } else {
                     hand_iterator += 1;
@@ -341,20 +345,16 @@ fn process_blackjack_input(
                 }
             }
         } else if (std.mem.eql(u8, input, "stand") or std.mem.eql(u8, input, "stay")) {
-            var total: u8 = 0;
-            var value: u8 = 0;
+            //            var value: u8 = 0;
             try stdout.print("STANDING! CARDS: ", .{});
             const player_deck = &hands[seat].?.items[hand_iterator].?;
             for (player_deck.items) |card| {
                 try stdout.print("{any} ", .{card});
-                value = blackjack_card_value(card);
-                if (value == 11 and total + value > 21) total += 1 else total += value;
             }
 
-            hand_value.*.items[hand_iterator] = total;
-            try stdout.print("\nTOTAL: {d}\n", .{total});
+            try stdout.print("\nTOTAL: {d}\n", .{hand_value.items[hand_iterator].?});
 
-            if (hand_iterator == hands[seat].?.items.len) {
+            if (hand_iterator == hands[seat].?.items.len - 1) {
                 break;
             } else {
                 hand_iterator += 1;
@@ -365,6 +365,9 @@ fn process_blackjack_input(
         } else if (std.mem.eql(u8, input, "double")) {
             if (first_iteration != true) {
                 try stdout.print("CAN'T DOUBLE AFTER HIT!\n", .{});
+                continue;
+            } else if (chips.*.? < bet.*.?) {
+                try stdout.print("CAN'T DOUBLE WITH INSUFFICENT CHIPS:!\nCHIPS: {d}, BET: {d}\n", .{ chips.*.?, bet.*.? });
                 continue;
             }
 
@@ -396,7 +399,7 @@ fn process_blackjack_input(
             try stdout.print("TOTAL: {d}\n", .{total});
 
             hand_value.*.items[hand_iterator] = total;
-            if (hand_iterator == hands[seat].?.items.len) {
+            if (hand_iterator == hands[seat].?.items.len - 1) {
                 break;
             } else {
                 hand_iterator += 1;
