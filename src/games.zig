@@ -422,6 +422,8 @@ fn process_blackjack_input(
                 continue;
             }
 
+            chips.*.? -= bet.*.?;
+
             try hands[seat].?.insert(
                 allocator,
                 hand_iterator + 1,

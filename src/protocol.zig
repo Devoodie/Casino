@@ -5,8 +5,7 @@ pub fn acceptConnections(address: *std.net.Address, connections: []?std.net.Serv
     var server = try address.listen(.{ .kernel_backlog = 7, .reuse_address = true });
     defer server.deinit();
 
-    //    _ = state;
-    std.debug.print("THREAD 2 GAMESTATE ID:{d}\n", .{state.ids[1].?});
+    _ = state;
     while (true) {
         for (connections) |*connection| {
             if (connection.* != null) continue;
