@@ -55,7 +55,7 @@ pub const Gamestate = struct {
     chips: []?f32,
     hand_value: []?std.ArrayList(?u8),
     bets: []?f32,
-    hands: []?std.ArrayList(?std.ArrayList(deck_utils.cards)),
+    hands: []?std.ArrayList(std.ArrayList(deck_utils.cards)),
 };
 
 //pub fn 0

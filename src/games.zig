@@ -44,7 +44,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     const chips = try allocator.alloc(?f32, 7);
     const hand_value = try allocator.alloc(?std.ArrayList(?u8), 7);
     const bets = try allocator.alloc(?f32, 7);
-    const hands = try allocator.alloc(?std.ArrayList(?std.ArrayList(deck_utils.cards)), 7);
+    const hands = try allocator.alloc(?std.ArrayList(std.ArrayList(deck_utils.cards)), 7);
 
     //struct neeeded
     //first array is a slice of arraylists with a length of 7
@@ -85,16 +85,16 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     ids[1] = 1;
     chips[1] = 1000;
 
-    //dealer always has id 0
+    //dealer always has id 0 and index 0
     //fucking 3-dimensional array my guy
-    hands[0] = try std.ArrayList(?std.ArrayList(deck_utils.cards)).initCapacity(allocator, 0);
-    hands[1] = try std.ArrayList(?std.ArrayList(deck_utils.cards)).initCapacity(allocator, 0);
+    hands[0] = try std.ArrayList(std.ArrayList(deck_utils.cards)).initCapacity(allocator, 4);
+    hands[1] = try std.ArrayList(std.ArrayList(deck_utils.cards)).initCapacity(allocator, 4);
 
-    hand_value[0] = try std.ArrayList(?u8).initCapacity(allocator, 1);
-    hand_value[1] = try std.ArrayList(?u8).initCapacity(allocator, 1);
+    hand_value[0] = try std.ArrayList(?u8).initCapacity(allocator, 2);
+    hand_value[1] = try std.ArrayList(?u8).initCapacity(allocator, 2);
 
-    try hands[0].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0));
-    try hands[1].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 0));
+    try hands[0].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 2));
+    try hands[1].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 2));
 
     try stdout.flush();
 
@@ -106,7 +106,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
 
     var dealt_card: deck_utils.cards = undefined;
     while (true) {
-        const dealer_hand = &hands[0].?.items[0].?;
+        const dealer_hand = &hands[0].?.items[0];
         //one iteration represents a round
 
         if (deck.items.len <= 52) {
@@ -131,7 +131,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
             if (ids[i % 7] == null) continue;
             dealt_card = deck.pop().?;
             try spent_deck.append(allocator, dealt_card);
-            try hands[i % 7].?.items[0].?.append(allocator, dealt_card);
+            try hands[i % 7].?.items[0].append(allocator, dealt_card);
         }
 
         //need to remember to shrink and free hand values
@@ -140,8 +140,8 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
             for (hands, hand_value) |*player_hands, *value| {
                 if (player_hands.* == null) continue;
                 player_hands.*.?.shrinkAndFree(allocator, 1);
-                value.*.?.clearAndFree(allocator);
-                player_hands.*.?.items[0].?.clearAndFree(allocator);
+                value.*.?.clearRetainingCapacity();
+                player_hands.*.?.items[0].clearRetainingCapacity();
             }
             break :free_cards;
         }
@@ -150,10 +150,9 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
         for (hands, 0..) |hand, seat| {
             if (hand == null) continue;
             for (hand.?.items) |*cards| {
-                if (cards.* == null) continue;
                 var value: u8 = 0;
                 var total: u8 = 0;
-                for (cards.*.?.items) |card| {
+                for (cards.*.items) |card| {
                     value = blackjack_card_value(card);
                     total += value;
                 }
@@ -241,27 +240,27 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
 
         //processes the winnings
         const dealer_value = hand_value[0].?.items[0].?;
-        for (hand_value, chips, 0..) |hand_values, *pot, i| {
-            if (hand_values == null or i == 0) continue;
-            for (hand_values.?.items) |value| {
-                if (value == null or i == 0) continue;
+        for (hand_value, chips, 0..) |hand_values, *pot, seat| {
+            if (hand_values == null or seat == 0) continue;
+            for (hand_values.?.items, 0..) |value, i| {
+                if (value == null) continue;
                 if ((value.? < dealer_value and dealer_value < 22) or value.? > 21) {
-                    try stdout.print("SEAT: {d} LOSES!\n", .{i});
-                    try stdout.print("SEAT {d} BET: {d:.2}\n", .{ i, bets[i].? });
-                    try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}\n", .{ i, pot.*.? });
+                    try stdout.print("SEAT: {d}, HAND: {d} LOSES!\n", .{ seat, i + 1 });
+                    try stdout.print("SEAT {d} BET: {d:.2}\n", .{ seat, bets[seat].? });
+                    try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}\n", .{ seat, pot.*.? });
                 } else if (value.? > dealer_value or dealer_value > 21) {
-                    try stdout.print("SEAT: {d} WINS!\n", .{i});
-                    try stdout.print("SEAT {d} BET: {d:.2}\n", .{ i, bets[i].? });
+                    try stdout.print("SEAT: {d}, HAND: {d} WINS!\n", .{ seat, i + 1 });
+                    try stdout.print("SEAT {d} BET: {d:.2}\n", .{ i, bets[seat].? });
 
-                    const earnings = bets[i].? * 2;
-                    try stdout.print("EARNINGS: {d:.2}\n", .{bets[i].?});
+                    const earnings = bets[seat].? * 2;
+                    try stdout.print("EARNINGS: {d:.2}\n", .{bets[seat].?});
                     pot.*.? += earnings;
 
-                    try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}\n", .{ i, pot.*.? });
+                    try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}\n", .{ seat, pot.*.? });
                 } else {
-                    try stdout.print("SEAT: {d} PUSHES!\n", .{i});
-                    pot.*.? += bets[i].?;
-                    try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}\n", .{ i, pot.*.? });
+                    try stdout.print("SEAT: {d}, HAND: {d} PUSHES!\n", .{ seat, i + 1 });
+                    pot.*.? += bets[seat].?;
+                    try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}\n", .{ seat, pot.*.? });
                 }
             }
         }
@@ -273,7 +272,7 @@ fn process_blackjack_input(
     allocator: std.mem.Allocator,
     deck: *std.ArrayList(deck_utils.cards),
     spent_deck: *std.ArrayList(deck_utils.cards),
-    hands: []?std.ArrayList(?std.ArrayList(deck_utils.cards)),
+    hands: []?std.ArrayList(std.ArrayList(deck_utils.cards)),
     seat: u8,
     hand_value: *std.ArrayList(?u8),
     chips: *?f32,
@@ -292,7 +291,7 @@ fn process_blackjack_input(
         if (std.mem.eql(u8, input, "hit")) {
             first_iteration = false;
             dealt_card = deck.pop().?;
-            const player_hand = &hands[seat].?.items[hand_iterator].?;
+            const player_hand = &hands[seat].?.items[hand_iterator];
 
             try player_hand.*.append(allocator, dealt_card);
             try spent_deck.*.append(allocator, dealt_card);
@@ -350,7 +349,7 @@ fn process_blackjack_input(
         } else if (std.mem.eql(u8, input, "stand") or std.mem.eql(u8, input, "stay")) {
             //            var value: u8 = 0;
             try stdout.print("STANDING! CARDS: ", .{});
-            const player_hand = &hands[seat].?.items[hand_iterator].?;
+            const player_hand = &hands[seat].?.items[hand_iterator];
             for (player_hand.items) |card| {
                 try stdout.print("{any} ", .{card});
             }
@@ -382,7 +381,7 @@ fn process_blackjack_input(
             var total: u8 = 0;
 
             dealt_card = deck.pop().?;
-            const player_hand = &hands[seat].?.items[hand_iterator].?;
+            const player_hand = &hands[seat].?.items[hand_iterator];
             try player_hand.*.append(allocator, dealt_card);
             try spent_deck.*.append(allocator, dealt_card);
 
@@ -418,6 +417,9 @@ fn process_blackjack_input(
             if (first_iteration != true) {
                 try stdout.print("CAN'T SPLIT AFTER HIT!\n", .{});
                 continue;
+            } else if (chips.*.? < bet.*.?) {
+                try stdout.print("CAN'T DOUBLE WITH INSUFFICENT CHIPS:!\nCHIPS: {d}, BET: {d}\n", .{ chips.*.?, bet.*.? });
+                continue;
             }
 
             try hands[seat].?.insert(
@@ -427,7 +429,7 @@ fn process_blackjack_input(
             );
 
             //BROH I FEEL SO STUPID THIS POINTER WAS BEING INVALIDATED BECAUSE 419 WAS BEING DONE AFTER IT
-            const player_hand = &hands[seat].?.items[hand_iterator].?;
+            const player_hand = &hands[seat].?.items[hand_iterator];
             if (blackjack_card_value(player_hand.items[0]) != blackjack_card_value(player_hand.items[1])) {
                 try stdout.print("CAN'T SPLIT TWO DIFFERENT CARD VALUES!\n{any} {any}\n", .{ player_hand.items[0], player_hand.items[1] });
                 continue;
@@ -435,7 +437,7 @@ fn process_blackjack_input(
 
             try stdout.print("SPLITTING:\n", .{});
 
-            const new_hand = &hands[seat].?.items[hand_iterator + 1].?;
+            const new_hand = &hands[seat].?.items[hand_iterator + 1];
 
             dealt_card = player_hand.*.pop().?;
 
@@ -462,7 +464,7 @@ fn process_blackjack_input(
                 try stdout.print("HAND {d}: ", .{i});
 
                 var total: u8 = 0;
-                for (hand.?.items) |card| {
+                for (hand.items) |card| {
                     total += blackjack_card_value(card);
                     try stdout.print("{any} ", .{card});
                 }
@@ -487,7 +489,7 @@ fn process_blackjack_input(
 //pub fn split(hand: *std.ArrayList(deck_utils.cards), bet: *f32, chips: *f64) !void {
 //}
 
-pub fn show_all_cards_blackjack(hands: []?std.ArrayList(?std.ArrayList(deck_utils.cards)), player: u8) !void {
+pub fn show_all_cards_blackjack(hands: []?std.ArrayList(std.ArrayList(deck_utils.cards)), player: u8) !void {
     for (hands, 0..) |player_hands, seat| {
         if (player_hands == null) continue;
         if (seat == 0) {
@@ -501,7 +503,7 @@ pub fn show_all_cards_blackjack(hands: []?std.ArrayList(?std.ArrayList(deck_util
         for (player_hands.?.items, 1..) |hand, hand_num| {
             try stdout.print("HAND {d}: ", .{hand_num});
 
-            for (hand.?.items, 0..) |card, i| {
+            for (hand.items, 0..) |card, i| {
                 if (i == 0 and seat == 0) {
                     try stdout.print(".HIDDEN ", .{});
                     continue;
