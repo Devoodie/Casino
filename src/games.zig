@@ -248,7 +248,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                 if ((value.? < dealer_value and dealer_value < 22) or value.? > 21) {
                     try stdout.print("SEAT: {d} LOSES!\n", .{i});
                     try stdout.print("SEAT {d} BET: {d:.2}\n", .{ i, bets[i].? });
-                    try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}", .{ i, pot.*.? });
+                    try stdout.print("SEAT {d} TOTAL CHIPS: {d:.2}\n", .{ i, pot.*.? });
                 } else if (value.? > dealer_value or dealer_value > 21) {
                     try stdout.print("SEAT: {d} WINS!\n", .{i});
                     try stdout.print("SEAT {d} BET: {d:.2}\n", .{ i, bets[i].? });
@@ -420,7 +420,11 @@ fn process_blackjack_input(
                 continue;
             }
 
-            try hands[seat].?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 2));
+            try hands[seat].?.insert(
+                allocator,
+                hand_iterator + 1,
+                try std.ArrayList(deck_utils.cards).initCapacity(allocator, 2),
+            );
 
             //BROH I FEEL SO STUPID THIS POINTER WAS BEING INVALIDATED BECAUSE 419 WAS BEING DONE AFTER IT
             const player_hand = &hands[seat].?.items[hand_iterator].?;
@@ -451,15 +455,23 @@ fn process_blackjack_input(
 
             try stdout.print("NEW CARDS:\n", .{});
 
+            try hand_value.append(allocator, 0);
+
             //CALCULATE HAND VALUE
-            for (hands[seat].?.items, 1..) |hand, i| {
+            for (hands[seat].?.items, hand_value.items, 1..) |hand, *value, i| {
                 try stdout.print("HAND {d}: ", .{i});
+
+                var total: u8 = 0;
                 for (hand.?.items) |card| {
+                    total += blackjack_card_value(card);
                     try stdout.print("{any} ", .{card});
                 }
+
                 try stdout.print("|\n", .{});
+                value.* = total;
             }
-            try stdout.print("ACTION: 1\n", .{});
+
+            try stdout.print("ACTION HAND: {d}\n", .{hand_iterator + 1});
             first_iteration = true;
         } else if (std.mem.eql(u8, input, "exit")) {
             try stdout.print("EXITING!\n", .{});
