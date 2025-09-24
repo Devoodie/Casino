@@ -39,12 +39,12 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
 
     //struct of arrays miht be fucking me here
     //*apparently this is array of struct of arrays*
-    const connections = try allocator.alloc(?std.net.Server.Connection, 7);
-    const ids = try allocator.alloc(?u16, 7);
-    const chips = try allocator.alloc(?f32, 7);
-    const hand_value = try allocator.alloc(?std.ArrayList(?u8), 7);
-    const bets = try allocator.alloc(?f32, 7);
-    const hands = try allocator.alloc(?std.ArrayList(std.ArrayList(deck_utils.cards)), 7);
+    const connections = try allocator.alloc(?std.net.Server.Connection, 8);
+    const ids = try allocator.alloc(?u16, 8);
+    const chips = try allocator.alloc(?f32, 8);
+    const hand_value = try allocator.alloc(?std.ArrayList(?u8), 8);
+    const bets = try allocator.alloc(?f32, 8);
+    const hands = try allocator.alloc(?std.ArrayList(std.ArrayList(deck_utils.cards)), 8);
 
     //struct neeeded
     //first array is a slice of arraylists with a length of 7
@@ -418,7 +418,7 @@ fn process_blackjack_input(
                 try stdout.print("CAN'T SPLIT AFTER HIT!\n", .{});
                 continue;
             } else if (chips.*.? < bet.*.?) {
-                try stdout.print("CAN'T DOUBLE WITH INSUFFICENT CHIPS:!\nCHIPS: {d}, BET: {d}\n", .{ chips.*.?, bet.*.? });
+                try stdout.print("CAN'T SPLIT WITH INSUFFICENT CHIPS:!\nCHIPS: {d}, BET: {d}\n", .{ chips.*.?, bet.*.? });
                 continue;
             }
 
