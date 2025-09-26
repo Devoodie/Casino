@@ -34,6 +34,9 @@ pub fn main() !void {
     const card_back = try rl.loadImage("assets/bicycle-130/card_back.jpg");
     const card_back_texture = try rl.loadTextureFromImage(card_back);
 
+    const drawing_rectangle: rl.Rectangle = .{ .x = screenWidth / 2, .y = screenHeight / 2, .height = 140, .width = 100 };
+
+    //SETUP THE RECTANGLES FOR EACH PLAYER
     while (!rl.windowShouldClose()) {
         //    const input = try stream_in.takeDelimiterExclusive('\n');
         //   std.debug.print("READ INPUT: {s}\n", .{input});
@@ -43,7 +46,8 @@ pub fn main() !void {
         rl.clearBackground(.white);
 
         rl.drawTexture(background_texture, 0, 0, .white);
-        rl.drawTexture(card_back_texture, 0, 0, .white);
+        rl.drawTexturePro(card_back_texture, .{ .x = 0, .y = 0, .width = @floatFromInt(card_back_texture.width), .height = @floatFromInt(card_back_texture.height) }, drawing_rectangle, .{ .y = drawing_rectangle.height / 2.0, .x = drawing_rectangle.width / 2.0 }, 0, .white);
+
         //        rl.drawTexture
         //        you need to use draw textureEX to shrink these cards
 
