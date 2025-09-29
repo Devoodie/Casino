@@ -38,9 +38,15 @@ pub fn blackjack() !void {
     const card_back = try rl.loadImage("assets/bicycle-130/card_back.jpg");
     const card_back_texture = try rl.loadTextureFromImage(card_back);
 
-    var drawing_rectangle: rl.Rectangle = .{ .x = screenWidth / 2, .y = screenHeight / 2, .height = 140, .width = 100 };
+    var drawing_rectangle: rl.Rectangle = .{ .x = screenWidth / 2, .y = screenHeight / 2, .height = 100 * 1.4, .width = 100 };
 
-    const player_positions = [_]rl.Vector2{ .{ .x = (screenWidth / 2), .y = screenHeight / 8 }, .{ .x = (screenWidth / 8) * 2, .y = (screenHeight * 7) / 8 } };
+    const player_positions = [_]rl.Vector2{
+        .{ .x = (screenWidth / 2), .y = screenHeight / 8 },
+        .{ .x = (screenWidth / 16) * 3, .y = (screenHeight * 7) / 8 },
+        .{ .x = (screenWidth / 16) * 7, .y = (screenHeight * 7) / 8 },
+        .{ .x = (screenWidth / 16) * 11, .y = (screenHeight * 7) / 8 },
+        .{ .x = (screenWidth / 16) * 15, .y = (screenHeight * 7) / 8 },
+    };
 
     while (!rl.windowShouldClose()) {
         //    const input = try stream_in.takeDelimiterExclusive('\n');
@@ -52,23 +58,26 @@ pub fn blackjack() !void {
 
         //SETUP THE RECTANGLES FOR EACH PLAYER
 
-        drawing_rectangle.x = player_positions[0].x;
-        drawing_rectangle.y = player_positions[0].y;
-
         rl.drawTexture(background_texture, 0, 0, .white);
-        rl.drawTexturePro(
-            card_back_texture,
-            .{
-                .x = 0,
-                .y = 0,
-                .width = @floatFromInt(card_back_texture.width),
-                .height = @floatFromInt(card_back_texture.height),
-            },
-            drawing_rectangle,
-            .{ .y = drawing_rectangle.height / 2.0, .x = drawing_rectangle.width / 2.0 },
-            0,
-            .white,
-        );
+
+        for (player_positions) |position| {
+            drawing_rectangle.x = position.x;
+            drawing_rectangle.y = position.y;
+
+            rl.drawTexturePro(
+                card_back_texture,
+                .{
+                    .x = 0,
+                    .y = 0,
+                    .width = @floatFromInt(card_back_texture.width),
+                    .height = @floatFromInt(card_back_texture.height),
+                },
+                drawing_rectangle,
+                .{ .y = drawing_rectangle.height / 2.0, .x = drawing_rectangle.width / 2.0 },
+                0,
+                .white,
+            );
+        }
 
         //
         rl.drawLine(0, (screenHeight / 4) * 1, screenWidth, (screenHeight / 4) * 1, .red);
@@ -99,8 +108,25 @@ pub fn blackjack() !void {
 
         rl.drawText("Congrats! You Created your first window!", 190, 200, 20, .light_gray);
 
-        drawing_rectangle.x = player_positions[1].x;
-        drawing_rectangle.y = player_positions[1].y;
+        drawing_rectangle.x = player_positions[1].x - screenWidth / 32;
+        drawing_rectangle.y = player_positions[1].y - screenHeight / 8;
+
+        rl.drawTexturePro(
+            card_back_texture,
+            .{
+                .x = 0,
+                .y = 0,
+                .width = @floatFromInt(card_back_texture.width),
+                .height = @floatFromInt(card_back_texture.height),
+            },
+            drawing_rectangle,
+            .{ .y = drawing_rectangle.height / 2.0, .x = drawing_rectangle.width / 2.0 },
+            0,
+            .white,
+        );
+
+        drawing_rectangle.x = player_positions[2].x - screenWidth / 32;
+        drawing_rectangle.y = player_positions[2].y - screenHeight / 8;
 
         rl.drawTexturePro(
             card_back_texture,
