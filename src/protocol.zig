@@ -46,8 +46,6 @@ pub fn sendGameState(connections: []?std.net.Server.Connection, state: Gamestate
             }
         };
     }
-    //    std.Thread.sleep(std.time.ns_per_s * 5);
-    //}
 }
 pub const Gamestate = struct {
     ids: []?u16,

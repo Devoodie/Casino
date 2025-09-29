@@ -48,6 +48,34 @@ pub fn main() !void {
         rl.drawTexture(background_texture, 0, 0, .white);
         rl.drawTexturePro(card_back_texture, .{ .x = 0, .y = 0, .width = @floatFromInt(card_back_texture.width), .height = @floatFromInt(card_back_texture.height) }, drawing_rectangle, .{ .y = drawing_rectangle.height / 2.0, .x = drawing_rectangle.width / 2.0 }, 0, .white);
 
+        //horizontal
+        rl.drawLine(0, (screenHeight / 4) * 1, screenWidth, (screenHeight / 4) * 1, .red);
+        rl.drawLine(0, (screenHeight / 4) * 2, screenWidth, (screenHeight / 4) * 2, .red);
+        rl.drawLine(0, (screenHeight / 4) * 3, screenWidth, (screenHeight / 4) * 3, .red);
+
+        //player 1
+        //        rl.drawLine(screenWidth / 8, 0, screenWidth / 8, screenHeight, .red);
+
+        rl.drawLine((screenWidth / 8) * 2, 0, (screenWidth / 8) * 2, screenHeight, .red);
+        //client
+        rl.drawLine((screenWidth / 8) * 2, screenHeight, 0, (screenHeight / 4) * 2, .red);
+
+        //player 2
+        rl.drawLine((screenWidth / 8) * 3, 0, (screenWidth / 8) * 3, screenHeight, .red);
+        rl.drawLine((screenWidth / 8) * 3, screenHeight, 0, (screenHeight / 4) * 1, .red);
+
+        rl.drawLine((screenWidth / 8) * 4, 0, (screenWidth / 8) * 4, screenHeight, .red);
+        rl.drawLine((screenWidth / 8) * 4, screenHeight, 0, 0, .red);
+
+        rl.drawLine((screenWidth / 8) * 5, 0, (screenWidth / 8) * 5, screenHeight, .red);
+        rl.drawLine((screenWidth / 8) * 5, screenHeight, screenWidth / 8, 0, .red);
+
+        rl.drawLine((screenWidth / 8) * 6, 0, (screenWidth / 8) * 6, screenHeight, .red);
+        rl.drawLine((screenWidth / 8) * 6, screenHeight, (screenWidth / 8) * 2, 0, .red);
+
+        rl.drawLine((screenWidth / 8) * 7, 0, (screenWidth / 8) * 7, screenHeight, .red);
+        rl.drawLine((screenWidth / 8) * 7, screenHeight, (screenWidth / 8) * 3, 0, .red);
+
         //        rl.drawTexture
         //        you need to use draw textureEX to shrink these cards
 
