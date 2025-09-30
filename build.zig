@@ -51,6 +51,8 @@ pub fn build(b: *std.Build) void {
     const raylib_artifact = raylib_dep.artifact("raylib"); // raylib C library
 
     const client = b.addModule("client", .{ .target = target, .root_source_file = b.path("src/root.zig") });
+
+    client.addIncludePath(b.path("src"));
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
     // to the module defined above, it's sometimes preferable to split business
@@ -67,9 +69,18 @@ pub fn build(b: *std.Build) void {
     //
     // If neither case applies to you, feel free to delete the declaration you
     // don't need and to put everything under a single module.
-    const client_exe = b.addExecutable(.{ .name = "client", .root_module = b.createModule(.{ .root_source_file = b.path("src/client/client.zig"), .target = target, .optimize = optimize, .imports = &.{
-        .{ .name = "client", .module = client },
-    } }) });
+    const client_exe = b.addExecutable(
+        .{ .name = "client", .root_module = b.createModule(
+            .{
+                .root_source_file = b.path("src/client/client.zig"),
+                .target = target,
+                .optimize = optimize,
+                .imports = &.{
+                    .{ .name = "client", .module = client },
+                },
+            },
+        ) },
+    );
 
     client_exe.linkLibrary(raylib_artifact);
     client_exe.root_module.addImport("raylib", raylib);

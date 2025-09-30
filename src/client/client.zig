@@ -1,8 +1,10 @@
 const std = @import("std");
 const rl = @import("raylib");
+const protocol = @import("src/protocol.zig");
 const screenWidth = 1280;
 const screenHeight = 720;
 
+var gamestate: protocol.Gamestate = undefined;
 pub fn main() !void {
     //1280
     //720
@@ -38,7 +40,7 @@ pub fn blackjack() !void {
     const card_back = try rl.loadImage("assets/bicycle-130/card_back.jpg");
     const card_back_texture = try rl.loadTextureFromImage(card_back);
 
-    var drawing_rectangle: rl.Rectangle = .{ .x = screenWidth / 2, .y = screenHeight / 2, .height = 100 * 1.4, .width = 100 };
+    var drawing_rectangle: rl.Rectangle = .{ .x = screenWidth / 2, .y = screenHeight / 2, .height = (screenWidth / 16) * 1.4, .width = screenWidth / 16 };
 
     const player_positions = [_]rl.Vector2{
         .{ .x = (screenWidth / 2), .y = screenHeight / 8 },
@@ -144,6 +146,9 @@ pub fn blackjack() !void {
     }
 }
 
-pub fn manageConnection(stream: *std.net.Stream, address: *std.net.Address) !void {
+pub fn renderCards() !void {}
+
+pub fn manageConnection(stream: *std.net.Stream, address: *std.net.Address, state: *protocol.Gamestate) !void {
+    _ = state;
     stream.* = try std.net.tcpConnectToAddress(address.*);
 }
