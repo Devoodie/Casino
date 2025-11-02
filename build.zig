@@ -51,6 +51,7 @@ pub fn build(b: *std.Build) void {
     const raylib_artifact = raylib_dep.artifact("raylib"); // raylib C library
 
     const client = b.addModule("client", .{ .target = target, .root_source_file = b.path("src/root.zig") });
+    const protocol = b.addModule("protocol", .{ .target = target, .root_source_file = b.path("src/protocol.zig") });
 
     client.addIncludePath(b.path("src"));
     // Here we define an executable. An executable needs to have a root module
@@ -83,6 +84,7 @@ pub fn build(b: *std.Build) void {
     );
 
     client_exe.linkLibrary(raylib_artifact);
+    client_exe.root_module.addImport("protocol", protocol);
     client_exe.root_module.addImport("raylib", raylib);
     client_exe.root_module.addImport("raygui", raygui);
     const exe = b.addExecutable(.{

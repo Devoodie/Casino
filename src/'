@@ -1,33 +1,15 @@
 const std = @import("std");
 const rl = @import("raylib");
 const protocol = @import("protocol");
-
-var signedScreenWidth: i32 = undefined;
-var signedScreenHeight: i32 = undefined;
-
-var screenWidth: f32 = undefined;
-var screenHeight: f32 = undefined;
+const screenWidth = rl.getScreenWidth() * .666;
+const screenHeight = rl.getScreenHeight() * .666;
 
 var gamestate: protocol.Gamestate = undefined;
 pub fn main() !void {
     //1280
     //720
 
-    rl.initWindow(0, 0, "raylib-zig [core] example - basic window");
-
-    // signedScreenWidth = @divTrunc((rl.getScreenWidth() * 2), 3);
-    // signedScreenHeight = @divTrunc((rl.getScreenHeight() * 2), 3);
-    //
-    signedScreenWidth = 1280;
-    signedScreenHeight = 720;
-
-    std.debug.print("SCREEN WIDTH {d}\n", .{signedScreenWidth});
-
-    screenWidth = @floatFromInt(signedScreenWidth);
-    screenHeight = @floatFromInt(signedScreenHeight);
-
-    rl.setWindowSize(signedScreenWidth, signedScreenHeight);
-
+    rl.initWindow(screenWidth, screenHeight, "raylib-zig [core] example - basic window");
     defer rl.closeWindow(); // Close window and OpenGL context
 
     rl.setTargetFPS(60);
@@ -39,7 +21,6 @@ pub fn main() !void {
     var connection_thread = try std.Thread.spawn(.{}, manageConnection, .{ &connection_stream, &server_address, &gamestate });
     defer connection_thread.join();
 
-    std.debug.print("Screen Height {d}", .{signedScreenHeight});
     try blackjack();
 
     //   var read_buffer: [4096]u8 = undefined;
@@ -101,35 +82,33 @@ pub fn blackjack() !void {
         }
 
         //
-        const screenHeightDivision = @divFloor(signedScreenHeight, 4);
-        const screenWidthDivision = @divFloor(signedScreenWidth, 8);
+        rl.drawLine(0, (screenHeight / 4) * 1, screenWidth, (screenHeight / 4) * 1, .red);
+        rl.drawLine(0, (screenHeight / 4) * 2, screenWidth, (screenHeight / 4) * 2, .red);
+        rl.drawLine(0, (screenHeight / 4) * 3, screenWidth, (screenHeight / 4) * 3, .red);
 
-        rl.drawLine(0, screenHeightDivision * 1, signedScreenWidth, screenHeightDivision * 1, .red);
-        rl.drawLine(0, screenHeightDivision * 2, signedScreenWidth, screenHeightDivision * 2, .red);
-        rl.drawLine(0, screenHeightDivision * 3, signedScreenWidth, screenHeightDivision * 3, .red);
+        //first verticle
+        rl.drawLine(screenWidth / 8, 0, screenWidth / 8, screenHeight, .red);
 
-        // //first verticle
-        rl.drawLine(screenWidthDivision, 0, screenWidthDivision, signedScreenHeight, .red);
-        // //player 1
-        rl.drawLine(screenWidthDivision * 2, signedScreenHeight, 0, screenHeightDivision * 2, .red);
-        rl.drawLine(screenWidthDivision * 2, 0, screenWidthDivision * 2, signedScreenHeight, .red);
-        //
-        rl.drawLine(screenWidthDivision * 3, 0, screenWidthDivision * 3, signedScreenHeight, .red);
-        rl.drawLine(screenWidthDivision * 3, signedScreenHeight, 0, screenHeightDivision * 1, .red);
-        //
-        rl.drawLine(screenWidthDivision * 4, 0, screenWidthDivision * 4, signedScreenHeight, .red);
-        rl.drawLine(screenWidthDivision * 4, signedScreenHeight, 0, 0, .red);
-        //
-        rl.drawLine(screenWidthDivision * 5, 0, screenWidthDivision * 5, signedScreenHeight, .red);
-        rl.drawLine(screenWidthDivision * 5, signedScreenHeight, screenWidthDivision, 0, .red);
-        //
-        rl.drawLine(screenWidthDivision * 6, 0, screenWidthDivision * 6, signedScreenHeight, .red);
-        rl.drawLine(screenWidthDivision * 6, signedScreenHeight, screenWidthDivision * 2, 0, .red);
-        //
-        rl.drawLine(screenWidthDivision * 7, 0, screenWidthDivision * 7, signedScreenHeight, .red);
-        rl.drawLine(screenWidthDivision * 7, signedScreenHeight, screenWidthDivision * 3, 0, .red);
-        //
-        // rl.drawText("Congrats! You Created your first window!", 190, 200, 20, .light_gray);
+        //player 1
+        rl.drawLine((screenWidth / 8) * 2, screenHeight, 0, (screenHeight / 4) * 2, .red);
+        rl.drawLine((screenWidth / 8) * 2, 0, (screenWidth / 8) * 2, screenHeight, .red);
+
+        rl.drawLine((screenWidth / 8) * 3, 0, (screenWidth / 8) * 3, screenHeight, .red);
+        rl.drawLine((screenWidth / 8) * 3, screenHeight, 0, (screenHeight / 4) * 1, .red);
+
+        rl.drawLine((screenWidth / 8) * 4, 0, (screenWidth / 8) * 4, screenHeight, .red);
+        rl.drawLine((screenWidth / 8) * 4, screenHeight, 0, 0, .red);
+
+        rl.drawLine((screenWidth / 8) * 5, 0, (screenWidth / 8) * 5, screenHeight, .red);
+        rl.drawLine((screenWidth / 8) * 5, screenHeight, screenWidth / 8, 0, .red);
+
+        rl.drawLine((screenWidth / 8) * 6, 0, (screenWidth / 8) * 6, screenHeight, .red);
+        rl.drawLine((screenWidth / 8) * 6, screenHeight, (screenWidth / 8) * 2, 0, .red);
+
+        rl.drawLine((screenWidth / 8) * 7, 0, (screenWidth / 8) * 7, screenHeight, .red);
+        rl.drawLine((screenWidth / 8) * 7, screenHeight, (screenWidth / 8) * 3, 0, .red);
+
+        rl.drawText("Congrats! You Created your first window!", 190, 200, 20, .light_gray);
 
         drawing_rectangle.x = player_positions[1].x - screenWidth / 32;
         drawing_rectangle.y = player_positions[1].y - screenHeight / 8;
