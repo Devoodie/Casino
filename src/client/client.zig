@@ -1,6 +1,7 @@
 const std = @import("std");
 const rl = @import("raylib");
 const protocol = @import("protocol");
+const deck_utils = protocol.deck_utils;
 
 var signedScreenWidth: i32 = undefined;
 var signedScreenHeight: i32 = undefined;
@@ -11,19 +12,19 @@ var screenHeight: f32 = undefined;
 var card_back_texture: rl.Texture2D = undefined;
 
 var gamestate: protocol.Gamestate = undefined;
+
 pub fn main() !void {
     //1280
     //720
 
-    rl.initWindow(0, 0, "raylib-zig [core] example - basic window");
+    //sample gamestate data
+    rl.initWindow(0, 0, "Dev's Casino");
 
     // signedScreenWidth = @divTrunc((rl.getScreenWidth() * 2), 3);
     // signedScreenHeight = @divTrunc((rl.getScreenHeight() * 2), 3);
-    //
+
     signedScreenWidth = 1280;
     signedScreenHeight = 720;
-
-    std.debug.print("SCREEN WIDTH {d}\n", .{signedScreenWidth});
 
     screenWidth = @floatFromInt(signedScreenWidth);
     screenHeight = @floatFromInt(signedScreenHeight);
@@ -41,7 +42,6 @@ pub fn main() !void {
     var connection_thread = try std.Thread.spawn(.{}, manageConnection, .{ &connection_stream, &server_address, &gamestate });
     defer connection_thread.join();
 
-    std.debug.print("Screen Height {d}", .{signedScreenHeight});
     try blackjack();
 
     //   var read_buffer: [4096]u8 = undefined;
@@ -55,6 +55,17 @@ pub fn main() !void {
 }
 
 pub fn blackjack() !void {
+    var alloc_config = std.heap.DebugAllocator(.{}).init;
+    const allocator = alloc_config.allocator();
+
+    gamestate = .{
+        .bets = try allocator.alloc(?f32, 7),
+        .chips = try allocator.alloc(?f32, 7),
+        .ids = try allocator.alloc(?u16, 7),
+        .hands = try allocator.alloc(?std.ArrayList(std.ArrayList(deck_utils.cards)), 7),
+        .hand_value = try allocator.alloc(?std.ArrayList(?u8), 7),
+    };
+
     const background_image = try rl.loadImage("assets/green_texture.jpg");
     const background_texture = try rl.loadTextureFromImage(background_image);
 
@@ -63,13 +74,35 @@ pub fn blackjack() !void {
 
     var drawing_rectangle: rl.Rectangle = .{ .x = screenWidth / 2, .y = screenHeight / 2, .height = (screenWidth / 16) * 1.4, .width = screenWidth / 16 };
 
-    const player_positions: []const rl.Vector2 = &.{
+    const player_starting_positions: []const rl.Vector2 = &.{
         .{ .x = (screenWidth / 2), .y = screenHeight / 8 },
-        .{ .x = (screenWidth / 16) * 3, .y = (screenHeight * 7) / 8 },
-        .{ .x = (screenWidth / 16) * 7, .y = (screenHeight * 7) / 8 },
-        .{ .x = (screenWidth / 16) * 11, .y = (screenHeight * 7) / 8 },
-        .{ .x = (screenWidth / 16) * 15, .y = (screenHeight * 7) / 8 },
+        .{ .x = (screenWidth / 16), .y = (screenHeight / 8) * 4 },
+        .{ .x = (screenWidth / 16) * 3, .y = (screenHeight / 8) * 7 },
+        .{ .x = (screenWidth / 16) * 7, .y = (screenHeight / 8) * 7 },
+        .{ .x = (screenWidth / 16) * 11, .y = (screenHeight / 8) * 7 },
+        .{ .x = (screenWidth / 16) * 15, .y = (screenHeight / 8) * 7 },
+        .{ .x = (screenWidth / 16) * 15, .y = (screenHeight / 8) * 4 },
     };
+
+    var player_positions = [7]std.ArrayList(?rl.Vector2){
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+    };
+
+    for (player_starting_positions, &player_positions) |starting_position, *position| {
+        position.* = try std.ArrayList(?rl.Vector2).initCapacity(allocator, 4);
+        try position.*.append(allocator, starting_position);
+    }
+    defer {
+        for (&player_positions) |*position| {
+            position.deinit(allocator);
+        }
+    }
 
     while (!rl.windowShouldClose()) {
         //    const input = try stream_in.takeDelimiterExclusive('\n');
@@ -83,26 +116,6 @@ pub fn blackjack() !void {
 
         rl.drawTexture(background_texture, 0, 0, .white);
 
-        for (player_positions) |position| {
-            drawing_rectangle.x = position.x;
-            drawing_rectangle.y = position.y;
-
-            rl.drawTexturePro(
-                card_back_texture,
-                .{
-                    .x = 0,
-                    .y = 0,
-                    .width = @floatFromInt(card_back_texture.width),
-                    .height = @floatFromInt(card_back_texture.height),
-                },
-                drawing_rectangle,
-                .{ .y = drawing_rectangle.height / 2.0, .x = drawing_rectangle.width / 2.0 },
-                0,
-                .white,
-            );
-        }
-
-        //
         const screenHeightDivision = @divFloor(signedScreenHeight, 4);
         const screenWidthDivision = @divFloor(signedScreenWidth, 8);
 
@@ -133,35 +146,44 @@ pub fn blackjack() !void {
         //
         // rl.drawText("Congrats! You Created your first window!", 190, 200, 20, .light_gray);
 
-        try renderCards(player_positions, &drawing_rectangle);
+        try renderCards(player_positions[0..player_starting_positions.len], &drawing_rectangle);
     }
 }
 
+// this needs to strictly render cards according to position
 pub fn renderCards(
-    player_positions: []const rl.Vector2,
+    card_positions: []std.ArrayList(?rl.Vector2),
     rectangle_pointer: *rl.Rectangle,
 ) !void {
     //CARD OFFSET
     //WIDTH 32
     //HEIGHT 8
     var drawing_rectangle = rectangle_pointer.*;
-    for (player_positions) |position| {
-        drawing_rectangle.x = position.x;
-        drawing_rectangle.y = position.y;
+    const hands = gamestate.hands;
 
-        rl.drawTexturePro(
-            card_back_texture,
-            .{
-                .x = 0,
-                .y = 0,
-                .width = @floatFromInt(card_back_texture.width),
-                .height = @floatFromInt(card_back_texture.height),
-            },
-            drawing_rectangle,
-            .{ .y = drawing_rectangle.height / 2.0, .x = drawing_rectangle.width / 2.0 },
-            0,
-            .white,
-        );
+    for (card_positions, 0..) |player_card_positions, player_index| {
+        if (hands[player_index] == null) continue;
+
+        for (player_card_positions.items) |*position| {
+            //            _ = hand;
+            if (position.* == null) break;
+            drawing_rectangle.x = position.*.?.x;
+            drawing_rectangle.y = position.*.?.y;
+
+            rl.drawTexturePro(
+                card_back_texture,
+                .{
+                    .x = 0,
+                    .y = 0,
+                    .width = @floatFromInt(card_back_texture.width),
+                    .height = @floatFromInt(card_back_texture.height),
+                },
+                drawing_rectangle,
+                .{ .y = drawing_rectangle.height / 2.0, .x = drawing_rectangle.width / 2.0 },
+                0,
+                .white,
+            );
+        }
     }
 }
 
