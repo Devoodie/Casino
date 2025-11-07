@@ -1,5 +1,5 @@
 const std = @import("std");
-pub const deck_utils = @import("decks.zig");
+const deck_utils = @import("deck_utils");
 
 pub fn acceptConnections(address: *std.net.Address, connections: []?std.net.Server.Connection, state: *Gamestate) !void {
     var server = try address.listen(.{ .kernel_backlog = 7, .reuse_address = true });

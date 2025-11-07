@@ -1,7 +1,9 @@
 const std = @import("std");
-const rl = @import("raylib");
+const assets = @import("assets.zig");
 const protocol = @import("protocol");
-const deck_utils = protocol.deck_utils;
+const deck_utils = @import("deck_utils");
+
+const rl = @import("raylib");
 
 var signedScreenWidth: i32 = undefined;
 var signedScreenHeight: i32 = undefined;
@@ -66,6 +68,8 @@ pub fn blackjack() !void {
         .hands = try allocator.alloc(?std.ArrayList(std.ArrayList(deck_utils.cards)), 7),
         .hand_value = try allocator.alloc(?std.ArrayList(?u8), 7),
     };
+
+    try assets.loadCardTextures();
 
     const background_image = try rl.loadImage("assets/green_texture.jpg");
     const background_texture = try rl.loadTextureFromImage(background_image);

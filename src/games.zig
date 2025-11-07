@@ -1,5 +1,5 @@
 const std = @import("std");
-const deck_utils = @import("decks.zig");
+const deck_utils = @import("deck_utils");
 const protocol = @import("protocol.zig");
 
 var stdout: *std.Io.Writer = undefined;

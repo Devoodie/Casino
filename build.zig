@@ -52,7 +52,10 @@ pub fn build(b: *std.Build) void {
 
     const client = b.addModule("client", .{ .target = target, .root_source_file = b.path("src/root.zig") });
     const protocol = b.addModule("protocol", .{ .target = target, .root_source_file = b.path("src/protocol.zig") });
+    const deck_utils = b.addModule("deck_utils", .{ .target = target, .root_source_file = b.path("src/decks.zig") });
+    const assets = b.addModule("assets", .{ .target = target, .root_source_file = b.path("src/client/assets.zig") });
 
+    protocol.addImport("deck_utils", deck_utils);
     client.addIncludePath(b.path("src"));
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
@@ -85,6 +88,8 @@ pub fn build(b: *std.Build) void {
 
     client_exe.linkLibrary(raylib_artifact);
     client_exe.root_module.addImport("protocol", protocol);
+    client_exe.root_module.addImport("deck_utils", deck_utils);
+    client_exe.root_module.addImport("assets", assets);
     client_exe.root_module.addImport("raylib", raylib);
     client_exe.root_module.addImport("raygui", raygui);
     const exe = b.addExecutable(.{
@@ -112,6 +117,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
+    exe.root_module.addImport("deck_utils", deck_utils);
 
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default
