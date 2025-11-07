@@ -55,6 +55,7 @@ pub fn main() !void {
 }
 
 pub fn blackjack() !void {
+    //initalize game
     var alloc_config = std.heap.DebugAllocator(.{}).init;
     const allocator = alloc_config.allocator();
 
@@ -84,7 +85,7 @@ pub fn blackjack() !void {
         .{ .x = (screenWidth / 16) * 15, .y = (screenHeight / 8) * 4 },
     };
 
-    var player_positions = [7]std.ArrayList(?rl.Vector2){
+    var player_hand_positions = [7]std.ArrayList(?std.ArrayList(rl.Vector2)){
         undefined,
         undefined,
         undefined,
@@ -94,12 +95,27 @@ pub fn blackjack() !void {
         undefined,
     };
 
-    for (player_starting_positions, &player_positions) |starting_position, *position| {
-        position.* = try std.ArrayList(?rl.Vector2).initCapacity(allocator, 4);
-        try position.*.append(allocator, starting_position);
+    for (player_starting_positions, &player_hand_positions) |starting_position, *hand_positions| {
+        //initialize each player with the possibility of 3 hands
+        hand_positions.* = try std.ArrayList(?std.ArrayList(rl.Vector2)).initCapacity(allocator, 3);
+        //append hand positions array
+        try hand_positions.*.append(allocator, try std.ArrayList(rl.Vector2).initCapacity(allocator, 4));
+        try hand_positions.items[0].?.append(allocator, starting_position);
     }
+
+    //intialize test card values
+    //for player
+    for (gamestate.hands) |*player| {
+        //initialize player
+        //append a hand to the player
+        //append card to hand
+        player.* = try std.ArrayList(std.ArrayList(deck_utils.cards)).initCapacity(allocator, 3);
+        try player.*.?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 4));
+        try player.*.?.items[0].append(allocator, deck_utils.cards.SPADE_KING);
+    }
+
     defer {
-        for (&player_positions) |*position| {
+        for (&player_hand_positions) |*position| {
             position.deinit(allocator);
         }
     }
@@ -146,46 +162,59 @@ pub fn blackjack() !void {
         //
         // rl.drawText("Congrats! You Created your first window!", 190, 200, 20, .light_gray);
 
-        try renderCards(player_positions[0..player_starting_positions.len], &drawing_rectangle);
+        try renderCards(player_hand_positions[0..player_hand_positions.len], &drawing_rectangle);
     }
 }
 
 // this needs to strictly render cards according to position
+// 3Dimensions of iteration
 pub fn renderCards(
-    card_positions: []std.ArrayList(?rl.Vector2),
+    player_hand_positions: []std.ArrayList(?std.ArrayList(rl.Vector2)),
     rectangle_pointer: *rl.Rectangle,
 ) !void {
     //CARD OFFSET
     //WIDTH 32
     //HEIGHT 8
     var drawing_rectangle = rectangle_pointer.*;
-    const hands = gamestate.hands;
+    const player_cards = gamestate.hands;
 
-    for (card_positions, 0..) |player_card_positions, player_index| {
-        if (hands[player_index] == null) continue;
+    //right now this just iterates over positions but lets try to have it iterate over cards too
+    //for player
 
-        for (player_card_positions.items) |*position| {
-            //            _ = hand;
-            if (position.* == null) break;
-            drawing_rectangle.x = position.*.?.x;
-            drawing_rectangle.y = position.*.?.y;
+    //    var card_texture: rl.Texture2D = undefined;
+    for (player_hand_positions, 0..) |player_hand, player_index| {
+        if (player_cards[player_index] == null) continue;
+        //for each player hand
 
-            rl.drawTexturePro(
-                card_back_texture,
-                .{
-                    .x = 0,
-                    .y = 0,
-                    .width = @floatFromInt(card_back_texture.width),
-                    .height = @floatFromInt(card_back_texture.height),
-                },
-                drawing_rectangle,
-                .{ .y = drawing_rectangle.height / 2.0, .x = drawing_rectangle.width / 2.0 },
-                0,
-                .white,
-            );
+        for (player_hand.items, player_cards[player_index].?.items) |hand_position, hand_cards| {
+            if (hand_position == null) continue;
+            for (hand_position.?.items, hand_cards.items) |card_position, card_value| {
+                //card_texture = getCardTexture(card_value);
+                _ = card_value;
+                drawing_rectangle.x = card_position.x;
+                drawing_rectangle.y = card_position.y;
+
+                rl.drawTexturePro(
+                    card_back_texture,
+                    .{
+                        .x = 0,
+                        .y = 0,
+                        .width = @floatFromInt(card_back_texture.width),
+                        .height = @floatFromInt(card_back_texture.height),
+                    },
+                    drawing_rectangle,
+                    .{ .y = drawing_rectangle.height / 2.0, .x = drawing_rectangle.width / 2.0 },
+                    0,
+                    .white,
+                );
+            }
         }
     }
 }
+
+// pub fn getCardTexture(card: deck_utils.cards) !rl.Vector2 {
+//     _ = void;
+// }
 
 pub fn manageConnection(stream: *std.net.Stream, address: *std.net.Address, state: *protocol.Gamestate) !void {
     _ = state;

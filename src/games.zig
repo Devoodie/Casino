@@ -136,7 +136,6 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
 
         //need to remember to shrink and free hand values
         defer free_cards: {
-            //EDIT HERE FOR SPLITTING
             for (hands, hand_value) |*player_hands, *value| {
                 if (player_hands.* == null) continue;
                 player_hands.*.?.shrinkAndFree(allocator, 1);
