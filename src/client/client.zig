@@ -167,6 +167,8 @@ pub fn blackjack() !void {
         rl.drawLine(screenWidthDivision * 7, 0, screenWidthDivision * 7, signedScreenHeight, .red);
         rl.drawLine(screenWidthDivision * 7, signedScreenHeight, screenWidthDivision * 3, 0, .red);
         //
+        //
+        renderDeck(0, &drawing_rectangle);
 
         try renderCards(player_hand_positions[0..player_hand_positions.len], &drawing_rectangle);
     }
@@ -217,9 +219,30 @@ pub fn renderCards(
     }
 }
 
-// pub fn getCardTexture(card: deck_utils.cards) !rl.Vector2 {
-//     _ = void;
-// }
+pub fn renderDeck(game: u8, rectangle_pointer: *rl.Rectangle) void {
+    var drawing_rectangle = rectangle_pointer.*;
+    if (game == 0) {
+        drawing_rectangle.x = (screenWidth / 8) * 3;
+        drawing_rectangle.y = (screenHeight / 8);
+    }
+
+    for (0..52) |_| {
+        rl.drawTexturePro(
+            card_back_texture,
+            .{
+                .x = 0,
+                .y = 0,
+                .width = @floatFromInt(card_back_texture.width),
+                .height = @floatFromInt(card_back_texture.height),
+            },
+            drawing_rectangle,
+            .{ .y = drawing_rectangle.height / 2.0, .x = drawing_rectangle.width / 2.0 },
+            0,
+            .white,
+        );
+        drawing_rectangle.y -= 0.25;
+    }
+}
 
 pub fn manageConnection(stream: *std.net.Stream, address: *std.net.Address, state: *protocol.Gamestate) !void {
     _ = state;
