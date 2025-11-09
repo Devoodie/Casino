@@ -77,7 +77,7 @@ pub fn blackjack() !void {
     const card_back = try rl.loadImage("assets/bicycle-130/card_back.jpg");
     card_back_texture = try rl.loadTextureFromImage(card_back);
 
-    var drawing_rectangle: rl.Rectangle = .{ .x = screenWidth / 2, .y = screenHeight / 2, .height = (screenWidth / 16) * 1.4, .width = screenWidth / 16 };
+    var drawing_rectangle: rl.Rectangle = .{ .x = screenWidth / 2, .y = screenHeight / 2, .height = ((screenWidth / 16) * 1.4) * 1.35, .width = (screenWidth / 16) * 1.35 };
 
     const player_starting_positions: []const rl.Vector2 = &.{
         .{ .x = (screenWidth / 2), .y = screenHeight / 8 },
@@ -117,6 +117,9 @@ pub fn blackjack() !void {
         try player.*.?.append(allocator, try std.ArrayList(deck_utils.cards).initCapacity(allocator, 4));
         try player.*.?.items[0].append(allocator, deck_utils.cards.SPADE_KING);
     }
+
+    gamestate.hands[1].?.items[0].appendAssumeCapacity(deck_utils.cards.SPADE_ACE);
+    player_hand_positions[1].items[0].?.appendAssumeCapacity(.{ .x = player_starting_positions[1].x + 16.0, .y = player_starting_positions[1].y - 64.0 });
 
     defer {
         for (&player_hand_positions) |*position| {
@@ -164,7 +167,6 @@ pub fn blackjack() !void {
         rl.drawLine(screenWidthDivision * 7, 0, screenWidthDivision * 7, signedScreenHeight, .red);
         rl.drawLine(screenWidthDivision * 7, signedScreenHeight, screenWidthDivision * 3, 0, .red);
         //
-        // rl.drawText("Congrats! You Created your first window!", 190, 200, 20, .light_gray);
 
         try renderCards(player_hand_positions[0..player_hand_positions.len], &drawing_rectangle);
     }
@@ -185,7 +187,7 @@ pub fn renderCards(
     //right now this just iterates over positions but lets try to have it iterate over cards too
     //for player
 
-    //    var card_texture: rl.Texture2D = undefined;
+    var card_texture: rl.Texture2D = undefined;
     for (player_hand_positions, 0..) |player_hand, player_index| {
         if (player_cards[player_index] == null) continue;
         //for each player hand
@@ -193,18 +195,17 @@ pub fn renderCards(
         for (player_hand.items, player_cards[player_index].?.items) |hand_position, hand_cards| {
             if (hand_position == null) continue;
             for (hand_position.?.items, hand_cards.items) |card_position, card_value| {
-                //card_texture = getCardTexture(card_value);
-                _ = card_value;
+                card_texture = assets.card_textures[@intFromEnum(card_value)];
                 drawing_rectangle.x = card_position.x;
                 drawing_rectangle.y = card_position.y;
 
                 rl.drawTexturePro(
-                    card_back_texture,
+                    card_texture,
                     .{
                         .x = 0,
                         .y = 0,
-                        .width = @floatFromInt(card_back_texture.width),
-                        .height = @floatFromInt(card_back_texture.height),
+                        .width = @floatFromInt(card_texture.width),
+                        .height = @floatFromInt(card_texture.height),
                     },
                     drawing_rectangle,
                     .{ .y = drawing_rectangle.height / 2.0, .x = drawing_rectangle.width / 2.0 },
