@@ -99,12 +99,26 @@ pub fn blackjack() !void {
         undefined,
     };
 
-    for (player_starting_positions, &player_hand_positions) |starting_position, *hand_positions| {
+    var target_hand_positions = [7]std.ArrayList(?std.ArrayList(rl.Vector2)){
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+    };
+
+    for (player_starting_positions, &player_hand_positions, &target_hand_positions) |starting_position, *hand_positions, *target_positions| {
         //initialize each player with the possibility of 3 hands
         hand_positions.* = try std.ArrayList(?std.ArrayList(rl.Vector2)).initCapacity(allocator, 3);
+        target_positions.* = try std.ArrayList(?std.ArrayList(rl.Vector2)).initCapacity(allocator, 3);
         //append hand positions array
         try hand_positions.*.append(allocator, try std.ArrayList(rl.Vector2).initCapacity(allocator, 4));
         try hand_positions.items[0].?.append(allocator, starting_position);
+
+        try target_positions.*.append(allocator, try std.ArrayList(rl.Vector2).initCapacity(allocator, 4));
+        try target_positions.items[0].?.append(allocator, starting_position);
     }
 
     //intialize test card values
@@ -247,4 +261,20 @@ pub fn renderDeck(game: u8, rectangle_pointer: *rl.Rectangle) void {
 pub fn manageConnection(stream: *std.net.Stream, address: *std.net.Address, state: *protocol.Gamestate) !void {
     _ = state;
     stream.* = try std.net.tcpConnectToAddress(address.*);
+}
+
+const GAME = enum {
+    BLACKJACK,
+    POKER,
+};
+
+fn positional_array(comptime game: GAME) type {
+    switch (game) {
+        GAME.BLACKJACK => {
+            return struct {
+                player_starting_positions: [7]std.ArrayList(?std.ArrayList(rl.Vector2)),
+                target_card_positions: [7]std.ArrayList(?std.ArrayList(rl.Vector2)),
+            };
+        },
+    }
 }
