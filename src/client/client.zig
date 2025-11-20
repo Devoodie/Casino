@@ -109,6 +109,13 @@ pub fn blackjack() !void {
         undefined,
     };
 
+    //this is going to be a struggle because im getting zero lsp support on this
+    const positional_arrays: blackjack_positional_array = .{
+        .player_starting_positions = player_starting_positions,
+        .card_positions = &player_hand_positions,
+        .target_card_positions = &target_hand_positions,
+    };
+
     for (player_starting_positions, &player_hand_positions, &target_hand_positions) |starting_position, *hand_positions, *target_positions| {
         //initialize each player with the possibility of 3 hands
         hand_positions.* = try std.ArrayList(?std.ArrayList(rl.Vector2)).initCapacity(allocator, 3);
@@ -142,9 +149,6 @@ pub fn blackjack() !void {
     }
 
     while (!rl.windowShouldClose()) {
-        //    const input = try stream_in.takeDelimiterExclusive('\n');
-        //   std.debug.print("READ INPUT: {s}\n", .{input});
-
         rl.beginDrawing();
         defer rl.endDrawing();
         rl.clearBackground(.white);
@@ -184,7 +188,7 @@ pub fn blackjack() !void {
         //
         renderDeck(0, &drawing_rectangle);
 
-        try renderCards(player_hand_positions[0..player_hand_positions.len], &drawing_rectangle);
+        try renderCards(positional_arrays.card_positions, &drawing_rectangle);
     }
 }
 
@@ -265,16 +269,18 @@ pub fn manageConnection(stream: *std.net.Stream, address: *std.net.Address, stat
 
 const GAME = enum {
     BLACKJACK,
-    POKER,
 };
 
-fn positional_array(comptime game: GAME) type {
-    switch (game) {
-        GAME.BLACKJACK => {
-            return struct {
-                player_starting_positions: [7]std.ArrayList(?std.ArrayList(rl.Vector2)),
-                target_card_positions: [7]std.ArrayList(?std.ArrayList(rl.Vector2)),
-            };
-        },
-    }
-}
+// fn positional_array(comptime game: GAME) type {
+//     switch (game) {
+//         GAME.BLACKJACK => {
+//             return blackjack_positional_array;
+//         },
+//     }
+// }
+
+const blackjack_positional_array = struct {
+    player_starting_positions: []const rl.Vector2,
+    card_positions: []std.ArrayList(?std.ArrayList(rl.Vector2)),
+    target_card_positions: []std.ArrayList(?std.ArrayList(rl.Vector2)),
+};
