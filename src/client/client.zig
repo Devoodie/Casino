@@ -109,11 +109,22 @@ pub fn blackjack() !void {
         undefined,
     };
 
+    var transformation_vectors = [7]std.ArrayList(?std.ArrayList(rl.Vector2)){
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+    };
+
     //this is going to be a struggle because im getting zero lsp support on this
     const positional_arrays: blackjack_positional_array = .{
         .player_starting_positions = player_starting_positions,
         .card_positions = &player_hand_positions,
         .target_card_positions = &target_hand_positions,
+        .transformation_vectors = &transformation_vectors,
     };
 
     for (player_starting_positions, &player_hand_positions, &target_hand_positions) |starting_position, *hand_positions, *target_positions| {
@@ -156,7 +167,6 @@ pub fn blackjack() !void {
         //SETUP THE RECTANGLES FOR EACH PLAYER
 
         rl.drawTexture(background_texture, 0, 0, .white);
-
         const screenHeightDivision = @divFloor(signedScreenHeight, 4);
         const screenWidthDivision = @divFloor(signedScreenWidth, 8);
 
@@ -185,10 +195,44 @@ pub fn blackjack() !void {
         rl.drawLine(screenWidthDivision * 7, 0, screenWidthDivision * 7, signedScreenHeight, .red);
         rl.drawLine(screenWidthDivision * 7, signedScreenHeight, screenWidthDivision * 3, 0, .red);
         //
-        //
         renderDeck(0, &drawing_rectangle);
 
         try renderCards(positional_arrays.card_positions, &drawing_rectangle);
+    }
+}
+
+// MAKE THESE GENERIC SO THAT THEY ARE RESUABLE FOR OTHER GAMES
+pub fn calcTransforms(
+    card_positions: []rl.Vector2,
+    desired_positions: []rl.Vector2,
+    trans_vectors: []rl.Vector2,
+) void {
+    //add a desync modifier for lag
+    var signed_bit = 1;
+    for (card_positions, desired_positions, trans_vectors) |card_position, desired_position, trans_vector| {
+        if (card_position.x == desired_position.x and card_position.y == desired_position.y) {
+            continue;
+        }
+        if (card_position.x >= desired_position.x + 100 or card_position.x <= desired_positions - 100) {
+            trans_vector.x = desired_position.x - card_position.x;
+        } else {
+            if (card_position.x > desired_position.x) signed_bit = -1;
+            //WORK HERE
+            card_position.x += 100 * signed_bit;
+        }
+        if (card_position.y >= desired_position.y + 100 or card_position.y <= desired_positions - 100) {
+            trans_vector.y = desired_position.y - card_position.y;
+        }
+    }
+    return void;
+}
+
+// just moves cards based on their respective transformation vectors
+pub fn moveCards(card_positions: []rl.Vector2, trans_vectors: []rl.Vector2) void {
+    for (card_positions, trans_vectors, 0..) |card_position, vector, i| {
+        _ = i;
+        card_position = rl.math.vector2Add(card_position, vector);
+        vector = .{ .x = 0, .y = 0 };
     }
 }
 
@@ -271,16 +315,13 @@ const GAME = enum {
     BLACKJACK,
 };
 
-// fn positional_array(comptime game: GAME) type {
-//     switch (game) {
-//         GAME.BLACKJACK => {
-//             return blackjack_positional_array;
-//         },
-//     }
-// }
+const Animations = enum {
+    DEALING,
+};
 
 const blackjack_positional_array = struct {
     player_starting_positions: []const rl.Vector2,
     card_positions: []std.ArrayList(?std.ArrayList(rl.Vector2)),
     target_card_positions: []std.ArrayList(?std.ArrayList(rl.Vector2)),
+    transformation_vectors: []std.ArrayList(?std.ArrayList(rl.Vector2)),
 };
