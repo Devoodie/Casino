@@ -127,16 +127,21 @@ pub fn blackjack() !void {
         .transformation_vectors = &transformation_vectors,
     };
 
-    for (player_starting_positions, &player_hand_positions, &target_hand_positions) |starting_position, *hand_positions, *target_positions| {
+    for (player_starting_positions, &player_hand_positions, &target_hand_positions, &transformation_vectors) |starting_position, *hand_positions, *target_positions, *transformations| {
         //initialize each player with the possibility of 3 hands
         hand_positions.* = try std.ArrayList(?std.ArrayList(rl.Vector2)).initCapacity(allocator, 3);
         target_positions.* = try std.ArrayList(?std.ArrayList(rl.Vector2)).initCapacity(allocator, 3);
+        transformations.* = try std.ArrayList(?std.ArrayList(rl.Vector2)).initCapacity(allocator, 3);
+
         //append hand positions array
         try hand_positions.*.append(allocator, try std.ArrayList(rl.Vector2).initCapacity(allocator, 4));
-        try hand_positions.items[0].?.append(allocator, starting_position);
+        try hand_positions.items[0].?.append(allocator, .{ .x = (screenWidth / 8) * 3, .y = (screenHeight / 8) });
 
         try target_positions.*.append(allocator, try std.ArrayList(rl.Vector2).initCapacity(allocator, 4));
         try target_positions.items[0].?.append(allocator, starting_position);
+
+        try transformations.*.append(allocator, try std.ArrayList(rl.Vector2).initCapacity(allocator, 4));
+        try transformations.*.items[0].?.append(allocator, .{ .x = 0, .y = 0 });
     }
 
     //intialize test card values
@@ -151,7 +156,12 @@ pub fn blackjack() !void {
     }
 
     gamestate.hands[1].?.items[0].appendAssumeCapacity(deck_utils.cards.SPADE_ACE);
-    player_hand_positions[1].items[0].?.appendAssumeCapacity(.{ .x = player_starting_positions[1].x + 16.0, .y = player_starting_positions[1].y - 64.0 });
+    positional_arrays.target_card_positions[1].items[0].?.appendAssumeCapacity(.{
+        .x = player_starting_positions[1].x + 16.0,
+        .y = player_starting_positions[1].y - 64.0,
+    });
+    positional_arrays.card_positions[1].items[0].?.appendAssumeCapacity(.{ .x = (screenWidth / 8) * 3, .y = (screenHeight / 8) });
+    positional_arrays.transformation_vectors[1].items[0].?.appendAssumeCapacity(.{ .x = 0, .y = 0 });
 
     defer {
         for (&player_hand_positions) |*position| {
@@ -195,6 +205,19 @@ pub fn blackjack() !void {
         rl.drawLine(screenWidthDivision * 7, 0, screenWidthDivision * 7, signedScreenHeight, .red);
         rl.drawLine(screenWidthDivision * 7, signedScreenHeight, screenWidthDivision * 3, 0, .red);
         //
+        //
+
+        for (
+            positional_arrays.card_positions,
+            positional_arrays.target_card_positions,
+            positional_arrays.transformation_vectors,
+        ) |player_pos, player_desired, player_trans| {
+            for (player_pos.items, player_desired.items, player_trans.items) |deck_pos, deck_desired, deck_trans| {
+                if (deck_desired == null) continue;
+                calcTransforms(deck_pos.?.items, deck_desired.?.items, deck_trans.?.items);
+                moveCards(deck_pos.?.items, deck_trans.?.items);
+            }
+        }
         renderDeck(0, &drawing_rectangle);
 
         try renderCards(positional_arrays.card_positions, &drawing_rectangle);
@@ -208,31 +231,38 @@ pub fn calcTransforms(
     trans_vectors: []rl.Vector2,
 ) void {
     //add a desync modifier for lag
-    var signed_bit = 1;
-    for (card_positions, desired_positions, trans_vectors) |card_position, desired_position, trans_vector| {
-        if (card_position.x == desired_position.x and card_position.y == desired_position.y) {
+    var signed_bit: f32 = 1;
+    for (card_positions, desired_positions, trans_vectors) |card_position, desired_position, *trans_vector| {
+        const x_eql = std.math.approxEqRel(f32, card_position.x, desired_position.x, 0.01);
+        const y_eql = std.math.approxEqRel(f32, card_position.y, desired_position.y, 0.01);
+
+        if (x_eql and y_eql) {
             continue;
         }
-        if (card_position.x >= desired_position.x + 100 or card_position.x <= desired_positions - 100) {
+        if (@abs(desired_position.x - card_position.x) < 10) {
             trans_vector.x = desired_position.x - card_position.x;
         } else {
             if (card_position.x > desired_position.x) signed_bit = -1;
             //WORK HERE
-            card_position.x += 100 * signed_bit;
+            trans_vector.x += 10 * signed_bit;
+            signed_bit = 1;
         }
-        if (card_position.y >= desired_position.y + 100 or card_position.y <= desired_positions - 100) {
+        if (@abs(desired_position.y - card_position.y) < 10) {
             trans_vector.y = desired_position.y - card_position.y;
+        } else {
+            if (card_position.y > desired_position.y) signed_bit = -1;
+            trans_vector.y += 10 * signed_bit;
+            signed_bit = 1;
         }
     }
-    return void;
 }
 
-// just moves cards based on their respective transformation vectors
+// just moves cards based on their respective transformation vectors and resets them
 pub fn moveCards(card_positions: []rl.Vector2, trans_vectors: []rl.Vector2) void {
-    for (card_positions, trans_vectors, 0..) |card_position, vector, i| {
+    for (card_positions, trans_vectors, 0..) |*card_position, *vector, i| {
         _ = i;
-        card_position = rl.math.vector2Add(card_position, vector);
-        vector = .{ .x = 0, .y = 0 };
+        card_position.* = rl.math.vector2Add(card_position.*, vector.*);
+        vector.* = .{ .x = 0, .y = 0 };
     }
 }
 
