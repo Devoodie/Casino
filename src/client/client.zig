@@ -220,7 +220,7 @@ pub fn blackjack() !void {
         }
         renderDeck(0, &drawing_rectangle);
 
-        try renderCards(positional_arrays.card_positions, &drawing_rectangle);
+        try renderCards(positional_arrays.card_positions, gamestate.hands, &drawing_rectangle);
     }
 }
 
@@ -231,7 +231,6 @@ pub fn calcTransforms(
     trans_vectors: []rl.Vector2,
 ) void {
     //add a desync modifier for lag
-    var signed_bit: f32 = 1;
     for (card_positions, desired_positions, trans_vectors) |card_position, desired_position, *trans_vector| {
         const x_eql = std.math.approxEqRel(f32, card_position.x, desired_position.x, 0.01);
         const y_eql = std.math.approxEqRel(f32, card_position.y, desired_position.y, 0.01);
@@ -239,21 +238,9 @@ pub fn calcTransforms(
         if (x_eql and y_eql) {
             continue;
         }
-        if (@abs(desired_position.x - card_position.x) < 10) {
-            trans_vector.x = desired_position.x - card_position.x;
-        } else {
-            if (card_position.x > desired_position.x) signed_bit = -1;
-            //WORK HERE
-            trans_vector.x += 10 * signed_bit;
-            signed_bit = 1;
-        }
-        if (@abs(desired_position.y - card_position.y) < 10) {
-            trans_vector.y = desired_position.y - card_position.y;
-        } else {
-            if (card_position.y > desired_position.y) signed_bit = -1;
-            trans_vector.y += 10 * signed_bit;
-            signed_bit = 1;
-        }
+        const buffer = rl.math.vector2MoveTowards(card_position, desired_position, 10.0);
+        trans_vector.x = buffer.x - card_position.x;
+        trans_vector.y = buffer.y - card_position.y;
     }
 }
 
@@ -270,13 +257,13 @@ pub fn moveCards(card_positions: []rl.Vector2, trans_vectors: []rl.Vector2) void
 // 3Dimensions of iteration
 pub fn renderCards(
     player_hand_positions: []std.ArrayList(?std.ArrayList(rl.Vector2)),
+    player_cards: []?std.ArrayList(std.ArrayList(deck_utils.cards)),
     rectangle_pointer: *rl.Rectangle,
 ) !void {
     //CARD OFFSET
     //WIDTH 32
     //HEIGHT 8
     var drawing_rectangle = rectangle_pointer.*;
-    const player_cards = gamestate.hands;
 
     //right now this just iterates over positions but lets try to have it iterate over cards too
     //for player
