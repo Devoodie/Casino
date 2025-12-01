@@ -272,16 +272,15 @@ pub fn dealCards(positional_arrays: *blackjack_positional_array, rendered_cards:
             card_offset = 1;
             signed_offset = 1;
         }
-
         const player_index = dividend % 7;
+
         if (gamestate.hands[player_index] == null) continue;
-        const position = positional_arrays.card_positions[player_index].items[0].?.items[card_offset];
-        const desired_position = positional_arrays.target_card_positions[player_index].items[0].?.items[card_offset];
-
-        const x_eql = std.math.approxEqRel(f32, position.x, desired_position.x, 0.01);
-        const y_eql = std.math.approxEqRel(f32, position.y, desired_position.y, 0.01);
-
         if (comp_index == rendering_index) {
+            const position = positional_arrays.card_positions[player_index].items[0].?.items[card_offset];
+            const desired_position = positional_arrays.target_card_positions[player_index].items[0].?.items[card_offset];
+
+            const x_eql = std.math.approxEqRel(f32, position.x, desired_position.x, 0.01);
+            const y_eql = std.math.approxEqRel(f32, position.y, desired_position.y, 0.01);
             if (x_eql and y_eql) {
                 //append next card, card position, and desired position
                 var new_card: deck_utils.cards = undefined;
