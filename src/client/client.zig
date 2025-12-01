@@ -268,17 +268,19 @@ pub fn dealCards(positional_arrays: *blackjack_positional_array, rendered_cards:
     var card_offset: u8 = 0;
     var signed_offset: f32 = 0;
     outer: for (1..15) |dividend| {
-        const player_index = dividend % 7;
         if (dividend > 7) {
             card_offset = 1;
             signed_offset = 1;
         }
+
+        const player_index = dividend % 7;
         if (gamestate.hands[player_index] == null) continue;
         const position = positional_arrays.card_positions[player_index].items[0].?.items[card_offset];
         const desired_position = positional_arrays.target_card_positions[player_index].items[0].?.items[card_offset];
 
         const x_eql = std.math.approxEqRel(f32, position.x, desired_position.x, 0.01);
         const y_eql = std.math.approxEqRel(f32, position.y, desired_position.y, 0.01);
+
         if (comp_index == rendering_index) {
             if (x_eql and y_eql) {
                 //append next card, card position, and desired position
@@ -287,7 +289,12 @@ pub fn dealCards(positional_arrays: *blackjack_positional_array, rendered_cards:
                     ani_status = Status.RESULT;
                     return;
                 }
-                for (player_index + 1..15) |j| {
+                if (dividend >= 7) {
+                    card_offset = 1;
+                    signed_offset = 1;
+                }
+                //find next available player
+                for ((dividend + 1)..15) |j| {
                     if (gamestate.hands[j % 7] == null) {
                         continue;
                     } else {
@@ -301,6 +308,11 @@ pub fn dealCards(positional_arrays: *blackjack_positional_array, rendered_cards:
                             positional_arrays.target_card_positions[j % 7].items[0].?.appendAssumeCapacity(.{
                                 .x = positional_arrays.player_starting_positions[j % 7].x + signed_offset * 16,
                                 .y = positional_arrays.player_starting_positions[j % 7].y + signed_offset * 64,
+                            });
+                        } else if (dividend == 12) {
+                            positional_arrays.target_card_positions[j % 7].items[0].?.appendAssumeCapacity(.{
+                                .x = positional_arrays.player_starting_positions[j % 7].x + signed_offset * 16,
+                                .y = positional_arrays.player_starting_positions[j % 7].y + signed_offset * -64,
                             });
                         } else {
                             positional_arrays.target_card_positions[j % 7].items[0].?.appendAssumeCapacity(.{
@@ -344,7 +356,7 @@ pub fn calcTransforms(
         if (x_eql and y_eql) {
             continue;
         }
-        const buffer = rl.math.vector2MoveTowards(card_position, desired_position, 20.0);
+        const buffer = rl.math.vector2MoveTowards(card_position, desired_position, 30.0);
         trans_vector.x = buffer.x - card_position.x;
         trans_vector.y = buffer.y - card_position.y;
     }
