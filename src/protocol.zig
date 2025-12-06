@@ -53,4 +53,6 @@ pub const Gamestate = struct {
     hand_value: []?std.ArrayList(?u8),
     bets: []?f32,
     hands: []?std.ArrayList(std.ArrayList(deck_utils.cards)),
+    action: u8,
+    hand_index: []?u8,
 };

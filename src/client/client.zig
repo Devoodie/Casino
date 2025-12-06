@@ -66,7 +66,11 @@ pub fn blackjack() !void {
         .ids = try allocator.alloc(?u16, 7),
         .hands = try allocator.alloc(?std.ArrayList(std.ArrayList(deck_utils.cards)), 7),
         .hand_value = try allocator.alloc(?std.ArrayList(?u8), 7),
+        .hand_index = try allocator.alloc(?u8, 7),
+        .action = 1,
     };
+
+    gamestate.hand_index[1] = 0;
 
     try assets.loadCardTextures();
 
@@ -177,8 +181,6 @@ pub fn blackjack() !void {
         const screenHeightDivision = @divFloor(signedScreenHeight, 4);
         const screenWidthDivision = @divFloor(signedScreenWidth, 8);
 
-        handleStatus(&positional_arrays, rendered_cards);
-
         rl.drawLine(0, screenHeightDivision * 1, signedScreenWidth, screenHeightDivision * 1, .red);
         rl.drawLine(0, screenHeightDivision * 2, signedScreenWidth, screenHeightDivision * 2, .red);
         rl.drawLine(0, screenHeightDivision * 3, signedScreenWidth, screenHeightDivision * 3, .red);
@@ -203,8 +205,8 @@ pub fn blackjack() !void {
         //
         rl.drawLine(screenWidthDivision * 7, 0, screenWidthDivision * 7, signedScreenHeight, .red);
         rl.drawLine(screenWidthDivision * 7, signedScreenHeight, screenWidthDivision * 3, 0, .red);
-        //
-        //
+
+        try handleStatus(allocator, &positional_arrays, rendered_cards);
 
         for (
             positional_arrays.card_positions,
@@ -217,6 +219,7 @@ pub fn blackjack() !void {
                 moveCards(deck_pos.?.items, deck_trans.?.items);
             }
         }
+
         renderDeck(0, &drawing_rectangle);
 
         for (positional_arrays.card_positions, rendered_cards) |hands, cards| {
@@ -230,22 +233,70 @@ pub fn blackjack() !void {
 
 //ASSERTIONS:
 //positional arrays must be equal in length
+//if an element is created or destroyed within the positional vectors, it must be reflected in all other arrays along with the renderin array
 //a players cards must be equal to the amount of positions
 pub fn handleStatus(
-    positonal_arrays: *blackjack_positional_array,
+    allocator: std.mem.Allocator,
+    positional_arrays: *blackjack_positional_array,
     rendered_cards: []?std.ArrayList(std.ArrayList(deck_utils.cards)),
-) void {
+) !void {
     switch (ani_status) {
         Status.DEALING => {
             //ensure that the first card is dealt
-            dealCards(positonal_arrays, rendered_cards);
+            dealCards(positional_arrays, rendered_cards);
+        },
+        Status.HIT => {
+            gamestate.hands[1].?.items[0].appendAssumeCapacity(deck_utils.cards.CLUB_FIVE);
+
+            const player_index = gamestate.action;
+            const player = gamestate.hands[player_index].?;
+
+            const hand_index = gamestate.hand_index[player_index].?;
+            const hand_len = player.items[hand_index].items.len;
+            const card = player.items[hand_index].items[hand_len - 1];
+
+            //append to the rendered cards
+            //
+            const float_hand_len: f32 = @floatFromInt(hand_len - 1);
+            var x_offset: f32 = -16.0 * float_hand_len;
+            var y_offset: f32 = -64.0 * float_hand_len;
+
+            if (player_index == 0) {
+                x_offset = 16 * float_hand_len - 1;
+                y_offset = 64 * float_hand_len - 1;
+            } else if (player_index == 6) {
+                x_offset = 16 * float_hand_len - 1;
+                y_offset = -64 * float_hand_len - 1;
+            }
+            try rendered_cards[player_index].?.items[hand_index].append(allocator, card);
+
+            positional_arrays.card_positions[player_index].items[hand_index].?.appendAssumeCapacity(.{
+                .x = (screenWidth / 8) * 3,
+                .y = (screenHeight / 8),
+            });
+
+            positional_arrays.target_card_positions[player_index].items[hand_index].?.appendAssumeCapacity(.{
+                .x = positional_arrays.player_starting_positions[player_index].x + x_offset,
+                .y = positional_arrays.player_starting_positions[player_index].y + y_offset,
+            });
+            positional_arrays.transformation_vectors[1].items[0].?.appendAssumeCapacity(.{
+                .x = 0,
+                .y = 0,
+            });
+
+            rendering_index += 1;
+            ani_status = Status.RESULT;
         },
         Status.RESULT => {
             //add winning effects
         },
+        Status.ACTION => {
+            return;
+        },
     }
 }
 
+//find a way to make this reusable and generic
 pub fn dealCards(positional_arrays: *blackjack_positional_array, rendered_cards: []?std.ArrayList(std.ArrayList(deck_utils.cards))) void {
     var comp_index: u16 = 0;
     //append first card
@@ -285,14 +336,15 @@ pub fn dealCards(positional_arrays: *blackjack_positional_array, rendered_cards:
                 //append next card, card position, and desired position
                 var new_card: deck_utils.cards = undefined;
                 if (dividend == 14) {
-                    ani_status = Status.RESULT;
+                    //                    ani_status = Status.RESULT;
+                    ani_status = Status.HIT;
                     return;
                 }
                 if (dividend >= 7) {
                     card_offset = 1;
                     signed_offset = 1;
                 }
-                //find next available player
+                //find next available player and append their card
                 for ((dividend + 1)..15) |j| {
                     if (gamestate.hands[j % 7] == null) {
                         continue;
@@ -355,7 +407,7 @@ pub fn calcTransforms(
         if (x_eql and y_eql) {
             continue;
         }
-        const buffer = rl.math.vector2MoveTowards(card_position, desired_position, 30.0);
+        const buffer = rl.math.vector2MoveTowards(card_position, desired_position, 20.0);
         trans_vector.x = buffer.x - card_position.x;
         trans_vector.y = buffer.y - card_position.y;
     }
@@ -441,7 +493,9 @@ const GAME = enum {
 
 const Status = enum {
     DEALING,
+    HIT,
     RESULT,
+    ACTION,
 };
 
 const blackjack_positional_array = struct {
