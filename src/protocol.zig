@@ -61,6 +61,9 @@ pub const Gamestate = struct {
 pub const Status = enum {
     DEALING,
     HIT,
+    STAND,
+    DOUBLE,
+    SPLIT,
     RESULT,
     ACTION,
 };

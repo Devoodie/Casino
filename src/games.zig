@@ -237,6 +237,8 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                         &hand_value[i].?,
                         &chips[i],
                         &bets[i],
+                        gamestate,
+                        connections,
                     );
                     try stdout.print("\n", .{});
                 },
@@ -278,6 +280,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     }
 }
 
+//tracks player input and logs in in gamestate
 fn process_blackjack_input(
     allocator: std.mem.Allocator,
     deck: *std.ArrayList(deck_utils.cards),
@@ -287,20 +290,25 @@ fn process_blackjack_input(
     hand_value: *std.ArrayList(?u8),
     chips: *?f32,
     bet: *?f32,
-    gamestate: protocol.Gamestate,
+    state: *protocol.Gamestate,
+    connections: []?std.net.Server.Connection,
 ) !void {
     var dealt_card: deck_utils.cards = undefined;
     var buffer: [4096]u8 = undefined;
     var first_iteration = true;
     var hand_iterator: u8 = 0;
-    var state: protocol.Status = undefined;
+
+    var gamestate = state.*;
+
     while (stdin.takeDelimiterExclusive('\n')) |raw| {
         //        _ = try stdin.discardShort(1);
         try stdout.print("\nHAND {d}:\n", .{hand_iterator + 1});
         try stdout.flush();
         const input = std.ascii.lowerString(&buffer, raw);
+
         if (std.mem.eql(u8, input, "hit")) {
-            gamestate.
+            gamestate.action = protocol.Status.HIT;
+
             first_iteration = false;
             dealt_card = deck.pop().?;
             const player_hand = &hands[seat].?.items[hand_iterator];
@@ -326,11 +334,15 @@ fn process_blackjack_input(
                     total -= 10;
                     ace_count -= 1;
                 }
+
+                try protocol.sendGameState(connections, gamestate);
+
                 if (total < 21) {
                     hand_value.*.items[hand_iterator] = total;
                     try stdout.print("TOTAL: {d}\n", .{total});
                     continue;
                 }
+
                 hand_value.*.items[hand_iterator] = total;
                 try stdout.print("TOTAL: {d}\n", .{total});
                 try stdout.print("BUSTED!\n", .{});
@@ -343,10 +355,14 @@ fn process_blackjack_input(
                     continue;
                 }
             } else if (total < 21) {
+                try protocol.sendGameState(connections, gamestate);
+
                 hand_value.*.items[hand_iterator] = total;
                 try stdout.print("TOTAL: {d}\n", .{total});
                 continue;
             } else {
+                try protocol.sendGameState(connections, gamestate);
+
                 hand_value.*.items[hand_iterator] = total;
                 try stdout.print("TOTAL: {d}\n", .{total});
 
@@ -360,6 +376,7 @@ fn process_blackjack_input(
             }
         } else if (std.mem.eql(u8, input, "stand") or std.mem.eql(u8, input, "stay")) {
             //            var value: u8 = 0;
+            gamestate.action = protocol.Status.STAND;
             try stdout.print("STANDING! CARDS: ", .{});
             const player_hand = &hands[seat].?.items[hand_iterator];
             for (player_hand.items) |card| {
@@ -367,6 +384,8 @@ fn process_blackjack_input(
             }
             //PROBLEM!!!!!!!!!!!!!!!!!!!!!!!
             try stdout.print("\nTOTAL: {d}\n", .{hand_value.items[hand_iterator].?});
+
+            try protocol.sendGameState(connections, gamestate);
             if (hand_iterator == hands[seat].?.items.len - 1) {
                 break;
             } else {
@@ -384,6 +403,8 @@ fn process_blackjack_input(
                 try stdout.print("CAN'T DOUBLE WITH INSUFFICENT CHIPS:!\nCHIPS: {d}, BET: {d}\n", .{ chips.*.?, bet.*.? });
                 continue;
             }
+
+            gamestate.action = protocol.Status.DOUBLE;
 
             chips.*.? -= bet.*.?;
             bet.*.? *= 2;
@@ -410,6 +431,9 @@ fn process_blackjack_input(
             while (total > 21 and ace_count > 0) {
                 total -= 10;
             }
+
+            try protocol.sendGameState(connections, gamestate);
+
             try stdout.print("TOTAL: {d}\n", .{total});
 
             hand_value.*.items[hand_iterator] = total;
@@ -433,6 +457,8 @@ fn process_blackjack_input(
                 try stdout.print("CAN'T SPLIT WITH INSUFFICENT CHIPS:!\nCHIPS: {d}, BET: {d}\n", .{ chips.*.?, bet.*.? });
                 continue;
             }
+
+            gamestate.action = protocol.Status.SPLIT;
 
             chips.*.? -= bet.*.?;
 
@@ -489,6 +515,8 @@ fn process_blackjack_input(
 
             try stdout.print("ACTION HAND: {d}\n", .{hand_iterator + 1});
             first_iteration = true;
+
+            try protocol.sendGameState(connections, gamestate);
         } else if (std.mem.eql(u8, input, "exit")) {
             try stdout.print("EXITING!\n", .{});
             std.posix.exit(0);

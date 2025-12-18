@@ -69,6 +69,7 @@ pub fn blackjack() !void {
         .hand_value = try allocator.alloc(?std.ArrayList(?u8), 7),
         .hand_index = try allocator.alloc(?u8, 7),
         .player_turn = 1,
+        .action = undefined,
     };
 
     gamestate.hand_index[1] = 0;
@@ -293,6 +294,10 @@ pub fn handleStatus(
             //add winning effects
         },
         Status.ACTION => {
+            return;
+        },
+        else => {
+            std.debug.print("NOT YET IMPLEMENTED\n", .{});
             return;
         },
     }
