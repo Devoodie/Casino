@@ -35,16 +35,16 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     var spent_deck = try std.ArrayList(deck_utils.cards).initCapacity(allocator, 52);
     defer spent_deck.deinit(allocator);
 
-    try deck_utils.initialize_deck(allocator, &deck, 8);
+    try deck_utils.initialize_deck(allocator, &deck, 7);
 
     //struct of arrays miht be fucking me here
     //*apparently this is array of struct of arrays*
-    const connections = try allocator.alloc(?std.net.Server.Connection, 8);
-    const ids = try allocator.alloc(?u16, 8);
-    const chips = try allocator.alloc(?f32, 8);
-    const hand_value = try allocator.alloc(?std.ArrayList(?u8), 8);
-    const bets = try allocator.alloc(?f32, 8);
-    const hands = try allocator.alloc(?std.ArrayList(std.ArrayList(deck_utils.cards)), 8);
+    const connections = try allocator.alloc(?std.net.Server.Connection, 7);
+    const ids = try allocator.alloc(?u16, 7);
+    const chips = try allocator.alloc(?f32, 7);
+    const hand_value = try allocator.alloc(?std.ArrayList(?u8), 7);
+    const bets = try allocator.alloc(?f32, 7);
+    const hands = try allocator.alloc(?std.ArrayList(std.ArrayList(deck_utils.cards)), 7);
 
     //struct neeeded
     //first array is a slice of arraylists with a length of 7
@@ -166,7 +166,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
 
         //figure out the best way to skip input parsing for blackjacks
 
-        for (1..8) |i| {
+        for (1..9) |i| {
             const seat = i % 7;
             const id = ids[seat];
 
@@ -225,8 +225,19 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                         hand_value[seat].?.items[0] = null;
                         continue;
                     }
+                    //need to be sending gamestate after every iteration of process blackjack input
                     try stdout.print("\n", .{});
-                    try process_blackjack_input(allocator, &deck, &spent_deck, hands, @truncate(i), &hand_value[i].?, &chips[i], &bets[i]);
+                    // TODO >>  refactor this to be a struct of arrays
+                    try process_blackjack_input(
+                        allocator,
+                        &deck,
+                        &spent_deck,
+                        hands,
+                        @truncate(i),
+                        &hand_value[i].?,
+                        &chips[i],
+                        &bets[i],
+                    );
                     try stdout.print("\n", .{});
                 },
                 else => {
@@ -276,18 +287,20 @@ fn process_blackjack_input(
     hand_value: *std.ArrayList(?u8),
     chips: *?f32,
     bet: *?f32,
+    gamestate: protocol.Gamestate,
 ) !void {
     var dealt_card: deck_utils.cards = undefined;
     var buffer: [4096]u8 = undefined;
     var first_iteration = true;
     var hand_iterator: u8 = 0;
-
+    var state: protocol.Status = undefined;
     while (stdin.takeDelimiterExclusive('\n')) |raw| {
         //        _ = try stdin.discardShort(1);
         try stdout.print("\nHAND {d}:\n", .{hand_iterator + 1});
         try stdout.flush();
         const input = std.ascii.lowerString(&buffer, raw);
         if (std.mem.eql(u8, input, "hit")) {
+            gamestate.
             first_iteration = false;
             dealt_card = deck.pop().?;
             const player_hand = &hands[seat].?.items[hand_iterator];

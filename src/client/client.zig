@@ -2,6 +2,7 @@ const std = @import("std");
 const assets = @import("assets.zig");
 const protocol = @import("protocol");
 const deck_utils = @import("deck_utils");
+const Status = protocol.Status;
 
 const rl = @import("raylib");
 
@@ -67,7 +68,7 @@ pub fn blackjack() !void {
         .hands = try allocator.alloc(?std.ArrayList(std.ArrayList(deck_utils.cards)), 7),
         .hand_value = try allocator.alloc(?std.ArrayList(?u8), 7),
         .hand_index = try allocator.alloc(?u8, 7),
-        .action = 1,
+        .player_turn = 1,
     };
 
     gamestate.hand_index[1] = 0;
@@ -246,9 +247,10 @@ pub fn handleStatus(
             dealCards(positional_arrays, rendered_cards);
         },
         Status.HIT => {
+            //Make sure to DELETE THIS!!
             gamestate.hands[1].?.items[0].appendAssumeCapacity(deck_utils.cards.CLUB_FIVE);
 
-            const player_index = gamestate.action;
+            const player_index = gamestate.player_turn;
             const player = gamestate.hands[player_index].?;
 
             const hand_index = gamestate.hand_index[player_index].?;
@@ -285,7 +287,7 @@ pub fn handleStatus(
             });
 
             rendering_index += 1;
-            ani_status = Status.RESULT;
+            ani_status = Status.ACTION;
         },
         Status.RESULT => {
             //add winning effects
@@ -336,6 +338,7 @@ pub fn dealCards(positional_arrays: *blackjack_positional_array, rendered_cards:
                 //append next card, card position, and desired position
                 var new_card: deck_utils.cards = undefined;
                 if (dividend == 14) {
+                    //make sure to DELETE THIS!
                     //                    ani_status = Status.RESULT;
                     ani_status = Status.HIT;
                     return;
@@ -407,7 +410,7 @@ pub fn calcTransforms(
         if (x_eql and y_eql) {
             continue;
         }
-        const buffer = rl.math.vector2MoveTowards(card_position, desired_position, 20.0);
+        const buffer = rl.math.vector2MoveTowards(card_position, desired_position, 30.0);
         trans_vector.x = buffer.x - card_position.x;
         trans_vector.y = buffer.y - card_position.y;
     }
@@ -489,13 +492,6 @@ pub fn manageConnection(stream: *std.net.Stream, address: *std.net.Address, stat
 
 const GAME = enum {
     BLACKJACK,
-};
-
-const Status = enum {
-    DEALING,
-    HIT,
-    RESULT,
-    ACTION,
 };
 
 const blackjack_positional_array = struct {

@@ -53,6 +53,14 @@ pub const Gamestate = struct {
     hand_value: []?std.ArrayList(?u8),
     bets: []?f32,
     hands: []?std.ArrayList(std.ArrayList(deck_utils.cards)),
-    action: u8,
+    player_turn: u8,
     hand_index: []?u8,
+    action: Status,
+};
+
+pub const Status = enum {
+    DEALING,
+    HIT,
+    RESULT,
+    ACTION,
 };
