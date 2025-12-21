@@ -493,6 +493,25 @@ pub fn renderDeck(game: u8, rectangle_pointer: *rl.Rectangle) void {
 pub fn manageConnection(stream: *std.net.Stream, address: *std.net.Address, state: *protocol.Gamestate) !void {
     _ = state;
     stream.* = try std.net.tcpConnectToAddress(address.*);
+    std.debug.print("CONNECTED!\n", .{});
+    var buffer: [8192]u8 = .{0} ** 8192;
+    var reader_handle = stream.*.reader(&buffer);
+    var reader = &reader_handle.file_reader.interface;
+    while (reader.takeDelimiterExclusive('\n')) |result| {
+        std.debug.print("{s}\n", .{result});
+        //parse the result into gamestate
+    } else |err| {
+        std.debug.print("ERR TYPE: {any}\n", .{err});
+        switch (err) {
+            std.Io.Reader.Error.EndOfStream => {
+                std.debug.print("END OF STREAM!\n", .{});
+            },
+            else => {
+                std.debug.print("ERROR {any}\n", .{reader_handle.file_reader.err.?});
+            },
+        }
+        return err;
+    }
 }
 
 const GAME = enum {

@@ -159,6 +159,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
             }
         }
 
+        gamestate.action = protocol.Status.DEALING;
         try protocol.sendGameState(connections, gamestate.*);
 
         try show_all_cards_blackjack(hands, 0);
@@ -166,7 +167,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
 
         //figure out the best way to skip input parsing for blackjacks
 
-        for (1..9) |i| {
+        for (1..8) |i| {
             const seat = i % 7;
             const id = ids[seat];
 
@@ -233,10 +234,10 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                         &deck,
                         &spent_deck,
                         hands,
-                        @truncate(i),
-                        &hand_value[i].?,
-                        &chips[i],
-                        &bets[i],
+                        @truncate(seat),
+                        &hand_value[seat].?,
+                        &chips[seat],
+                        &bets[seat],
                         gamestate,
                         connections,
                     );
