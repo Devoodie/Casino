@@ -11,7 +11,6 @@ pub fn acceptConnections(address: *std.net.Address, connections: []?std.net.Serv
             if (connection.* != null) continue;
             connection.* = try server.accept();
         }
-        std.Thread.sleep(std.time.ns_per_s * 5);
     }
 }
 
@@ -26,12 +25,53 @@ pub fn sendGameState(connections: []?std.net.Server.Connection, state: Gamestate
         stream_writer = &stream.interface;
 
         try stream_writer.print("STATE\n", .{});
-        for (state.ids, state.chips, state.hand_value, state.bets, state.hands) |id, chips, value, bets, hand| {
-            if (id == null or id == 0) {
+        for (state.ids, state.chips, state.hand_value, state.hands, state.bets) |id, chips, value, hands, bets| {
+            //id
+            //chips
+            //bets
+            //action
+            //hands
+            //hand value
+            //player_turn
+            if (id == null) {
                 try stream_writer.print("null,null,null,null,null\n", .{});
                 continue;
             }
-            try stream_writer.print("{any},{any},{any},{any},{any}\n", .{ id.?, chips.?, value.?, bets.?, hand.? });
+            if (id.? != 0) {
+                try stream_writer.print("{d},{d:.2},{d:.2},{d},", .{
+                    id.?,
+                    chips.?,
+                    bets.?,
+                    @intFromEnum(state.action),
+                });
+
+                for (hands.?.items) |hand| {
+                    for (hand.items) |card| {
+                        try stream_writer.print("{any}[", .{card});
+                    }
+                    try stream_writer.print(";", .{});
+                }
+                try stream_writer.print(",", .{});
+
+                for (value.?.items) |hand_value| {
+                    try stream_writer.print("{d};", .{hand_value.?});
+                }
+                try stream_writer.print(",", .{});
+
+                try stream_writer.print("{d}\n", .{state.player_turn});
+            } else {
+                try stream_writer.print("{d},null,null,{d}", .{
+                    id.?,
+                    @intFromEnum(state.action),
+                });
+                //if action != result then show card back else show dealer cards
+                for (hands.?.items[0]) |hand| {
+                    for (hand.items) |card| {
+                        try stream_writer.print("{any}[", .{card});
+                    }
+                    try stream_writer.print(";", .{});
+                }
+            }
         }
 
         stream_writer.flush() catch {

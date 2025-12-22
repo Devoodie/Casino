@@ -277,6 +277,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                 }
             }
         }
+        try protocol.sendGameState(connections, gamestate.*);
         try stdout.flush();
     }
 }
