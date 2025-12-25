@@ -55,6 +55,7 @@ pub const cards = enum(u8) {
     DIAMOND_QUEEN,
     DIAMOND_KING,
     DIAMOND_ACE,
+    CARD_BACK,
 };
 
 pub fn initialize_deck(allocator: std.mem.Allocator, deck: *std.ArrayList(cards), deck_amount: u8) !void {

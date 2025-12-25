@@ -38,11 +38,12 @@ pub fn sendGameState(connections: []?std.net.Server.Connection, state: Gamestate
                 continue;
             }
             if (id.? != 0) {
-                try stream_writer.print("{d},{d:.2},{d:.2},{d},", .{
+                try stream_writer.print("{d},{d:.2},{d:.2},{any},", .{
                     id.?,
                     chips.?,
                     bets.?,
-                    @intFromEnum(state.action),
+                    //MAKE THIS INTFROM ENUM
+                    state.action,
                 });
 
                 for (hands.?.items) |hand| {
@@ -54,23 +55,41 @@ pub fn sendGameState(connections: []?std.net.Server.Connection, state: Gamestate
                 try stream_writer.print(",", .{});
 
                 for (value.?.items) |hand_value| {
-                    try stream_writer.print("{d};", .{hand_value.?});
+                    if (hand_value == null) {
+                        try stream_writer.print("null;", .{});
+                    } else {
+                        try stream_writer.print("{d};", .{hand_value.?});
+                    }
                 }
+
                 try stream_writer.print(",", .{});
 
                 try stream_writer.print("{d}\n", .{state.player_turn});
             } else {
-                try stream_writer.print("{d},null,null,{d}", .{
+                try stream_writer.print("{d},null,null,{any},", .{
                     id.?,
-                    @intFromEnum(state.action),
+                    //MAKE THIS INTFROM ENUM
+                    state.action,
                 });
+
                 //if action != result then show card back else show dealer cards
-                for (hands.?.items[0]) |hand| {
-                    for (hand.items) |card| {
-                        try stream_writer.print("{any}[", .{card});
+                if (state.action != Status.RESULT and state.action != Status.DEALER_HIT) {
+                    try stream_writer.print("{any}]{any}];,", .{
+                        //MAKE THESE INT FROM ENUM
+                        state.hands[0].?.items[0].items[1],
+                        deck_utils.cards.CARD_BACK,
+                    });
+                } else {
+                    for (hands.?.items) |hand| {
+                        for (hand.items) |card| {
+                            try stream_writer.print("{any}[", .{card});
+                        }
+                        try stream_writer.print(";", .{});
                     }
-                    try stream_writer.print(";", .{});
+                    try stream_writer.print(",", .{});
                 }
+                try stream_writer.print("{d},", .{value.?.items[0].?});
+                try stream_writer.print("{any}\n", .{state.player_turn});
             }
         }
 
@@ -94,13 +113,14 @@ pub const Gamestate = struct {
     bets: []?f32,
     hands: []?std.ArrayList(std.ArrayList(deck_utils.cards)),
     player_turn: u8,
-    hand_index: []?u8,
+    hand_index: u8,
     action: Status,
 };
 
 pub const Status = enum {
     DEALING,
     HIT,
+    DEALER_HIT,
     STAND,
     DOUBLE,
     SPLIT,

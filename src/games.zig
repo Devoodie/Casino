@@ -188,6 +188,9 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                     var ace_count: u8 = 0;
 
                     try stdout.print("DEALER CARDS: ", .{});
+                    gamestate.*.action = protocol.Status.DEALER_HIT;
+                    try protocol.sendGameState(connections, gamestate.*);
+
                     for (dealer_hand.items) |card| {
                         value = blackjack_card_value(card);
                         try stdout.print("{any} ", .{card});
@@ -211,9 +214,12 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                             total -= 10;
                             ace_count -= 1;
                         }
+                        gamestate.*.action = protocol.Status.DEALER_HIT;
+                        try protocol.sendGameState(connections, gamestate.*);
                     }
                     try stdout.print("DEALER TOTAL: {d}\n", .{total});
                     hand_value[0].?.items[0] = total;
+                    gamestate.*.action = protocol.Status.DEALER_HIT;
                     break :dealer;
                 },
                 1 => {
@@ -241,13 +247,13 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                         gamestate,
                         connections,
                     );
+                    gamestate.hand_index = 0;
                     try stdout.print("\n", .{});
                 },
                 else => {
                     std.debug.print("Unknown error has occured!\n", .{});
                 },
             }
-            try protocol.sendGameState(connections, gamestate.*);
         }
         try stdout.print("\n\n", .{});
 
@@ -277,6 +283,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
                 }
             }
         }
+        gamestate.*.action = protocol.Status.RESULT;
         try protocol.sendGameState(connections, gamestate.*);
         try stdout.flush();
     }
@@ -303,6 +310,8 @@ fn process_blackjack_input(
     var gamestate = state.*;
 
     while (stdin.takeDelimiterExclusive('\n')) |raw| {
+        //hand_index will be set to zero after this functioncall
+        gamestate.hand_index = hand_iterator;
         //        _ = try stdin.discardShort(1);
         try stdout.print("\nHAND {d}:\n", .{hand_iterator + 1});
         try stdout.flush();
