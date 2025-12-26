@@ -30,6 +30,7 @@ pub fn sendGameState(connections: []?std.net.Server.Connection, state: Gamestate
             //chips
             //bets
             //action
+            //hand_index
             //hands
             //hand value
             //player_turn
@@ -38,12 +39,13 @@ pub fn sendGameState(connections: []?std.net.Server.Connection, state: Gamestate
                 continue;
             }
             if (id.? != 0) {
-                try stream_writer.print("{d},{d:.2},{d:.2},{any},", .{
+                try stream_writer.print("{d},{d:.2},{d:.2},{any},{d},", .{
                     id.?,
                     chips.?,
                     bets.?,
                     //MAKE THIS INTFROM ENUM
                     state.action,
+                    state.hand_index,
                 });
 
                 for (hands.?.items) |hand| {
@@ -66,10 +68,11 @@ pub fn sendGameState(connections: []?std.net.Server.Connection, state: Gamestate
 
                 try stream_writer.print("{d}\n", .{state.player_turn});
             } else {
-                try stream_writer.print("{d},null,null,{any},", .{
+                try stream_writer.print("{d},null,null,{any},{d},", .{
                     id.?,
                     //MAKE THIS INTFROM ENUM
                     state.action,
+                    state.hand_index,
                 });
 
                 //if action != result then show card back else show dealer cards
@@ -126,4 +129,5 @@ pub const Status = enum {
     SPLIT,
     RESULT,
     ACTION,
+    DONE,
 };

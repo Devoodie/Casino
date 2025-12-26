@@ -76,6 +76,7 @@ pub fn blackjack(allocator: std.mem.Allocator) !void {
     gamestate.hand_value = hand_value;
     gamestate.bets = bets;
     gamestate.hands = hands;
+    gamestate.hand_index = 0;
 
     address = try std.net.Address.parseIp4("0.0.0.0", 8192);
 

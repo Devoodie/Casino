@@ -15,7 +15,7 @@ var screenHeight: f32 = undefined;
 var card_back_texture: rl.Texture2D = undefined;
 
 var gamestate: protocol.Gamestate = undefined;
-var ani_status: Status = Status.DEALING;
+var ani_status: Status = Status.DONE;
 var rendering_index: u16 = 0;
 
 pub fn main() !void {
@@ -67,12 +67,10 @@ pub fn blackjack() !void {
         .ids = try allocator.alloc(?u16, 7),
         .hands = try allocator.alloc(?std.ArrayList(std.ArrayList(deck_utils.cards)), 7),
         .hand_value = try allocator.alloc(?std.ArrayList(?u8), 7),
-        .hand_index = try allocator.alloc(?u8, 7),
+        .hand_index = 0,
         .player_turn = 1,
         .action = undefined,
     };
-
-    gamestate.hand_index[1] = 0;
 
     try assets.loadCardTextures();
 
@@ -247,19 +245,16 @@ pub fn handleStatus(
             //ensure that the first card is dealt
             dealCards(positional_arrays, rendered_cards);
         },
-        Status.HIT => {
+        Status.HIT, Status.DEALER_HIT => {
             //Make sure to DELETE THIS!!
-            gamestate.hands[1].?.items[0].appendAssumeCapacity(deck_utils.cards.CLUB_FIVE);
-
             const player_index = gamestate.player_turn;
             const player = gamestate.hands[player_index].?;
 
-            const hand_index = gamestate.hand_index[player_index].?;
+            const hand_index = gamestate.hand_index;
             const hand_len = player.items[hand_index].items.len;
             const card = player.items[hand_index].items[hand_len - 1];
 
             //append to the rendered cards
-            //
             const float_hand_len: f32 = @floatFromInt(hand_len - 1);
             var x_offset: f32 = -16.0 * float_hand_len;
             var y_offset: f32 = -64.0 * float_hand_len;
@@ -288,16 +283,17 @@ pub fn handleStatus(
             });
 
             rendering_index += 1;
-            ani_status = Status.ACTION;
+            ani_status = Status.DONE;
         },
         Status.RESULT => {
+            rendering_index = 0;
             //add winning effects
         },
         Status.ACTION => {
             return;
         },
         else => {
-            std.debug.print("NOT YET IMPLEMENTED\n", .{});
+            // std.debug.print("NOT YET IMPLEMENTED\n", .{});
             return;
         },
     }
@@ -343,9 +339,7 @@ pub fn dealCards(positional_arrays: *blackjack_positional_array, rendered_cards:
                 //append next card, card position, and desired position
                 var new_card: deck_utils.cards = undefined;
                 if (dividend == 14) {
-                    //make sure to DELETE THIS!
-                    //                    ani_status = Status.RESULT;
-                    ani_status = Status.HIT;
+                    ani_status = Status.DONE;
                     return;
                 }
                 if (dividend >= 7) {
