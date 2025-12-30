@@ -41,10 +41,12 @@ pub fn main() !void {
     var server_address = try std.net.Address.parseIp4("127.0.0.1", 8192);
     var connection_stream: std.net.Stream = undefined;
 
-    var connection_thread = try std.Thread.spawn(.{}, manageConnection, .{ &connection_stream, &server_address, &gamestate });
+    var mutex: std.Thread.Mutex = .{};
+
+    var connection_thread = try std.Thread.spawn(.{}, manageConnection, .{ &mutex, &connection_stream, &server_address, &gamestate });
     defer connection_thread.join();
 
-    try blackjack();
+    try blackjack(&mutex);
 
     //   var read_buffer: [4096]u8 = undefined;
     //  var write_buffer: [4096]u8 = undefined;
@@ -56,7 +58,7 @@ pub fn main() !void {
     //   var stream_out = &stream_writer.interface;
 }
 
-pub fn blackjack() !void {
+pub fn blackjack(mutex: *std.Thread.Mutex) !void {
     //initalize game
     var alloc_config = std.heap.DebugAllocator(.{}).init;
     const allocator = alloc_config.allocator();
@@ -206,7 +208,9 @@ pub fn blackjack() !void {
         rl.drawLine(screenWidthDivision * 7, 0, screenWidthDivision * 7, signedScreenHeight, .red);
         rl.drawLine(screenWidthDivision * 7, signedScreenHeight, screenWidthDivision * 3, 0, .red);
 
+        mutex.lock();
         try handleStatus(allocator, &positional_arrays, rendered_cards);
+        mutex.unlock();
 
         for (
             positional_arrays.card_positions,
@@ -289,12 +293,9 @@ pub fn handleStatus(
             rendering_index = 0;
             //add winning effects
         },
-        Status.ACTION => {
-            return;
-        },
+        Status.ACTION => {},
         else => {
             // std.debug.print("NOT YET IMPLEMENTED\n", .{});
-            return;
         },
     }
 }
@@ -484,7 +485,7 @@ pub fn renderDeck(game: u8, rectangle_pointer: *rl.Rectangle) void {
     }
 }
 
-pub fn manageConnection(stream: *std.net.Stream, address: *std.net.Address, state: *protocol.Gamestate) !void {
+pub fn manageConnection(mutex: *std.Thread.Mutex, stream: *std.net.Stream, address: *std.net.Address, state: *protocol.Gamestate) !void {
     _ = state;
     stream.* = try std.net.tcpConnectToAddress(address.*);
     std.debug.print("CONNECTED!\n", .{});
@@ -492,8 +493,17 @@ pub fn manageConnection(stream: *std.net.Stream, address: *std.net.Address, stat
     var reader_handle = stream.*.reader(&buffer);
     var reader = &reader_handle.file_reader.interface;
     while (reader.takeDelimiterExclusive('\n')) |result| {
+        mutex.lock();
+        //id
+        //chips
+        //bets
+        //action
+        //hand_index
+        //hands
+        //hand value
+        //player_turn
         std.debug.print("{s}\n", .{result});
-        //parse the result into gamestate
+        mutex.unlock();
     } else |err| {
         std.debug.print("ERR TYPE: {any}\n", .{err});
         switch (err) {
